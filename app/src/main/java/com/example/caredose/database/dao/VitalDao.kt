@@ -25,9 +25,8 @@ interface VitalDao {
     @Query("SELECT * FROM vitals WHERE patientId = :patientId AND masterVitalId = :vitalTypeId ORDER BY recordedAt DESC")
     fun getVitalsByType(patientId: Long, vitalTypeId: Long): Flow<List<Vital>>
 
-    @Query("SELECT * FROM vitals WHERE patientId = :patientId AND recordedAt BETWEEN :startTime AND :endTime ORDER BY recordedAt DESC")
+    @Query("SELECT * FROM vitals WHERE patientId = :patientId AND recordedAt BETWEEN :startTime AND :endTime ORDER BY recordedAt ASC")
     suspend fun getVitalsInRange(patientId: Long, startTime: Long, endTime: Long): List<Vital>
-
     @Query("DELETE FROM vitals WHERE patientId = :patientId")
     suspend fun deleteAllForPatient(patientId: Long)
 }

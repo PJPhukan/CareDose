@@ -2,6 +2,7 @@ package com.example.caredose.database.dao
 
 import androidx.room.*
 import com.example.caredose.database.entities.Dose
+import com.example.caredose.database.entities.Vital
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -30,6 +31,7 @@ interface DoseDao {
 
     @Query("DELETE FROM doses WHERE stockId = :stockId")
     suspend fun deleteAllForMedicineStock(stockId: Long)
+
 
     @Query("DELETE FROM doses WHERE patientId = :patientId")
     suspend fun deleteAllForPatient(patientId: Long)

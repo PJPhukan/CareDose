@@ -47,6 +47,7 @@ class MedicineStockAdapter(
                 binding.apply {
                     tvMedicineName.text = medicine?.name ?: "Unknown Medicine"
                     tvStockQty.text = "Stock: ${stock.stockQty} Tablet"
+                    tvDuration.text = "${stock.duration?.toString() + " Days" ?: "Continue"}"
 
                     // Low stock warning
                     if (stock.stockQty <= stock.reminderStockThreshold) {
@@ -59,8 +60,7 @@ class MedicineStockAdapter(
                     // Buttons
                     btnEdit.setOnClickListener { onEditClick(stock) }
                     btnDelete.setOnClickListener { onDeleteClick(stock) }
-                    btnIncrement.setOnClickListener { onIncrementStock(stock) }
-                    btnDecrement.setOnClickListener { onDecrementStock(stock) }
+                    btnStockMedicine.setOnClickListener { onEditClick(stock) }
 
                     // Card click
                     root.setOnClickListener { onEditClick(stock) }

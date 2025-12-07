@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        supportActionBar?.hide()
+//        supportActionBar?.hide()
         sessionManager = SessionManager(this)
         database = AppDatabase.getDatabase(this)
 

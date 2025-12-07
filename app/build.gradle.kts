@@ -59,4 +59,7 @@ dependencies {
     // For Fragment
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     implementation("androidx.activity:activity-ktx:1.8.2")
+
+    //For graph
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 }

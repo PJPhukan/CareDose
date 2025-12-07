@@ -18,23 +18,17 @@ class MasterVitalRepository(private val database: AppDatabase) {
         return dao.insert(vital)
     }
 
-    // Insert multiple vitals (optional usage)
     suspend fun insertAllVitals(vitals: List<MasterVital>) {
         dao.insertAll(vitals)
     }
-
-    // Update a vital
     suspend fun updateVital(vital: MasterVital) {
         dao.update(vital)
     }
-
-    // Delete a vital
     suspend fun deleteVital(vital: MasterVital) {
         dao.delete(vital)
     }
 
-    // Get vital by ID
-    suspend fun getVitalById(vitalId: Long): MasterVital? {
+      suspend fun getVitalById(vitalId: Long): MasterVital? {
         return dao.getById(vitalId)
     }
 

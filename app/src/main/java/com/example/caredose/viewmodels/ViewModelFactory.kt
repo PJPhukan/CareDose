@@ -30,7 +30,7 @@ class ViewModelFactory(
             }
 
             modelClass.isAssignableFrom(DashboardViewModel::class.java) -> {
-                DashboardViewModel() as T
+                DashboardViewModel(patientRepository!!,vitalRepository!!,masterVitalRepository!!) as T
             }
 
             modelClass.isAssignableFrom(NotificationsViewModel::class.java) -> {

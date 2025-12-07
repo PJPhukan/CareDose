@@ -33,6 +33,7 @@ data class Dose(
     val timeInMinutes: Int,  // Minutes since midnight (e.g., 540 = 9:00 AM)
     val quantity: Int = 1,  // Number of tablets/units per dose
     val isActive: Boolean = true,
+    val reminderMinutesBefore : Int,
     @PrimaryKey(autoGenerate = true)
     val doseId: Long = 0,
     val createdAt: Long = System.currentTimeMillis()
