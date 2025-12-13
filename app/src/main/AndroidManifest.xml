@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.caredose"
     xmlns:tools="http://schemas.android.com/tools">
+
+
+<!--    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />-->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+<!--    <uses-permission android:name="android.permission.VIBRATE" />-->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -9,8 +21,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CareDose">
+        android:theme="@style/Theme.CareDose"
+        tools:targetApi="31">
 
+        <!-- Activities -->
         <activity
             android:name=".SplashScreen"
             android:exported="true"
@@ -20,21 +34,34 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".MainActivity"
             android:exported="false"/>
+
         <activity
             android:name=".PatientDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.CareDose.NoActionBar" />
+
         <activity
             android:name=".AddEditPatient"
             android:exported="false"
             android:theme="@style/Theme.CareDose.NoActionBar" />
+
+        <!-- ✅ Broadcast Receivers -->
+
+
+
+
+        <receiver android:name=".alarm.ReminderDoseReceiver"/>
+        <receiver android:name=".alarm.BootReceiver"/>
+        <receiver android:name=".alarm.MidnightRescheduleReceiver"/>
 
     </application>
 

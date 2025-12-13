@@ -19,17 +19,17 @@ interface DoseLogDao {
     @Query("SELECT * FROM dose_logs WHERE logId = :id")
     suspend fun getById(id: Long): DoseLog?
 
-    @Query("SELECT * FROM dose_logs WHERE doseId = :doseId ORDER BY takenAt DESC")
+    @Query("SELECT * FROM dose_logs WHERE doseId = :doseId ORDER BY timestamp DESC")
     fun getLogsByDose(doseId: Long): Flow<List<DoseLog>>
 
-    @Query("SELECT * FROM dose_logs WHERE doseId = :doseId ORDER BY takenAt DESC")
+    @Query("SELECT * FROM dose_logs WHERE doseId = :doseId ORDER BY timestamp DESC")
     suspend fun getLogsByDoseList(doseId: Long): List<DoseLog>
 
     @Query("""
         SELECT * FROM dose_logs 
         WHERE doseId = :doseId 
-        AND takenAt BETWEEN :startTime AND :endTime 
-        ORDER BY takenAt DESC
+        AND timestamp BETWEEN :startTime AND :endTime 
+        ORDER BY timestamp DESC
     """)
     suspend fun getLogsByDateRange(doseId: Long, startTime: Long, endTime: Long): List<DoseLog>
 
@@ -37,7 +37,7 @@ interface DoseLogDao {
         SELECT dl.* FROM dose_logs dl
         INNER JOIN doses d ON dl.doseId = d.doseId
         WHERE d.stockId = :stockId
-        ORDER BY dl.takenAt DESC
+        ORDER BY dl.timestamp DESC
     """)
     fun getLogsByMedicineStock(stockId: Long): Flow<List<DoseLog>>
 }

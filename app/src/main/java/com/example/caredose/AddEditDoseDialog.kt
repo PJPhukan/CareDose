@@ -1,16 +1,20 @@
-package com.example.caredose.ui.patient.dialogs
+package com.example.caredose
 
+import android.R
 import android.app.Dialog
 import android.app.TimePickerDialog
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.example.caredose.alarm.CareDoseAlarmDoseManager
 import com.example.caredose.database.AppDatabase
 import com.example.caredose.database.entities.Dose
 import com.example.caredose.database.entities.MedicineStock
@@ -18,7 +22,9 @@ import com.example.caredose.databinding.DialogAddEditDoseBinding
 import com.example.caredose.repository.MedicineStockRepository
 import com.example.caredose.viewmodels.MedicineStockViewModel
 import com.example.caredose.viewmodels.ViewModelFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.*
 
 // Helper data class to hold the necessary medicine information
@@ -28,21 +34,21 @@ private data class MedicineInfo(
 )
 
 class AddEditDoseDialog : DialogFragment() {
-
     private var _binding: DialogAddEditDoseBinding? = null
     private val binding get() = _binding!!
-
     private var patientId: Long = 0
     private var existingDose: Dose? = null
     private var onSaveListener: ((Dose) -> Unit)? = null
-
-    private lateinit var medicineStockViewModel: MedicineStockViewModel
     private var medicineStocks = listOf<MedicineStock>()
-    private var medicineInfoList = listOf<MedicineInfo>() // Stores StockId and Name
+    private var medicineInfoList = listOf<MedicineInfo>()
     private var selectedTimeInMinutes: Int = 540 // Default 9:00 AM
     private var reminderMinutesBefore: Int = 15 // Default 15 minutes
 
+    private lateinit var scheduler: CareDoseAlarmDoseManager
+    private lateinit var medicineStockViewModel: MedicineStockViewModel
+
     companion object {
+        private const val TAG = "AddEditDoseDialog"
         private const val ARG_PATIENT_ID = "patient_id"
         private const val ARG_DOSE = "dose"
 
@@ -63,7 +69,8 @@ class AddEditDoseDialog : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         patientId = arguments?.getLong(ARG_PATIENT_ID) ?: 0
-        existingDose = arguments?.getSerializable(ARG_DOSE) as? Dose
+        @Suppress("DEPRECATION")
+        existingDose = arguments?.getParcelable(ARG_DOSE)
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -84,11 +91,11 @@ class AddEditDoseDialog : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Set dialog width to 90% of screen
         dialog?.window?.setLayout(
             (resources.displayMetrics.widthPixels * 0.9).toInt(),
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+        scheduler = CareDoseAlarmDoseManager(requireContext())
 
         setupViewModel()
         setupUI()
@@ -102,7 +109,8 @@ class AddEditDoseDialog : DialogFragment() {
             medicineStockRepository = MedicineStockRepository(db.medicineStockDao())
         )
 
-        medicineStockViewModel = ViewModelProvider(this, factory)[MedicineStockViewModel::class.java]
+        medicineStockViewModel =
+            ViewModelProvider(this, factory)[MedicineStockViewModel::class.java]
         medicineStockViewModel.setPatientId(patientId)
     }
 
@@ -117,8 +125,6 @@ class AddEditDoseDialog : DialogFragment() {
             binding.etReminderMinutes.setText(reminderMinutesBefore.toString())
             binding.switchActive.isChecked = dose.isActive
             binding.btnSave.text = "Update"
-
-            // Removed asynchronous database lookup here. Handled in setupMedicineSpinner.
         } ?: run {
             binding.tvTitle.text = "Add Dose Schedule"
             binding.btnSelectTime.text = formatTime(selectedTimeInMinutes)
@@ -130,19 +136,16 @@ class AddEditDoseDialog : DialogFragment() {
     private fun observeMedicines() {
         medicineStockViewModel.medicineStocks.observe(viewLifecycleOwner) { stocks ->
             medicineStocks = stocks
-            // Use coroutine scope to safely run the suspend function
             lifecycleScope.launch {
                 setupMedicineSpinner(stocks)
             }
         }
     }
 
-    // FIX: Made suspend to safely perform DB lookups before setting adapter/text
     private suspend fun setupMedicineSpinner(stocks: List<MedicineStock>) {
         val db = AppDatabase.getDatabase(requireContext())
         val newMedicineInfoList = mutableListOf<MedicineInfo>()
 
-        // Fetch all medicine names and stock IDs synchronously within this coroutine
         stocks.forEach { stock ->
             val medicine = db.masterMedicineDao().getById(stock.masterMedicineId)
             val name = medicine?.name ?: "Unknown"
@@ -154,20 +157,16 @@ class AddEditDoseDialog : DialogFragment() {
 
         val adapter = ArrayAdapter(
             requireContext(),
-            android.R.layout.simple_dropdown_item_1line,
+            R.layout.simple_dropdown_item_1line,
             medicineNames
         )
 
         binding.actvMedicine.setAdapter(adapter)
 
-        // FIX: Set pre-selected medicine after adapter is fully loaded (Edit Mode fix)
         existingDose?.let { dose ->
-            // Find the medicine name using the stockId from the existing dose
             val selectedName = medicineInfoList.find { it.stockId == dose.stockId }?.name
             if (selectedName != null) {
-                // Post to ensure setting text happens after UI is ready
                 binding.actvMedicine.post {
-                    // Set the text, passing 'false' to suppress filtering (though not strictly necessary here)
                     binding.actvMedicine.setText(selectedName, false)
                     binding.actvMedicine.setSelection(selectedName.length)
                 }
@@ -181,7 +180,7 @@ class AddEditDoseDialog : DialogFragment() {
         }
 
         binding.btnSave.setOnClickListener {
-            saveDose()
+            saveDoseAndScheduleAlarm()
         }
 
         binding.btnCancel.setOnClickListener {
@@ -201,7 +200,7 @@ class AddEditDoseDialog : DialogFragment() {
             },
             hour,
             minute,
-            false // 12-hour format
+            false
         ).show()
     }
 
@@ -221,54 +220,35 @@ class AddEditDoseDialog : DialogFragment() {
         )
     }
 
-    private fun saveDose() {
+    private fun saveDoseAndScheduleAlarm() {
         val medicineName = binding.actvMedicine.text.toString().trim()
         val quantityStr = binding.etQuantity.text.toString()
         val reminderStr = binding.etReminderMinutes.text.toString()
 
-        // Validation
-        if (medicineName.isEmpty()) {
-            binding.actvMedicine.error = "Select a medicine"
-            return
-        }
-
-        if (quantityStr.isEmpty()) {
-            binding.etQuantity.error = "Quantity required"
-            return
-        }
-
-        if (reminderStr.isEmpty()) {
-            binding.etReminderMinutes.error = "Reminder time required"
+        if (medicineName.isEmpty() || quantityStr.isEmpty() || reminderStr.isEmpty()) {
+            Toast.makeText(requireContext(), "Please fill all fields.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val quantity = quantityStr.toIntOrNull() ?: 1
         val reminderMinutes = reminderStr.toIntOrNull() ?: 15
 
-        // Validate reminder time
-        if (reminderMinutes < 0) {
-            binding.etReminderMinutes.error = "Must be 0 or more minutes"
+        if (reminderMinutes < 0 || reminderMinutes >= 1440) {
+            binding.etReminderMinutes.error = "Invalid reminder time"
             return
         }
 
-        if (reminderMinutes >= 1440) { // 24 hours
-            binding.etReminderMinutes.error = "Must be less than 24 hours (1440 minutes)"
-            return
-        }
-
-        // Find medicine stock ID using the pre-loaded medicineInfoList
         val selectedStockInfo = medicineInfoList.find { info ->
             info.name.equals(medicineName, ignoreCase = true)
-        }
-
-        if (selectedStockInfo == null) {
+        } ?: run {
             binding.actvMedicine.error = "Medicine not found or not in stock"
             return
         }
 
         val stockId = selectedStockInfo.stockId
 
-        val dose = existingDose?.copy(
+        // 1. Create the Dose object
+        val newOrUpdatedDose = existingDose?.copy(
             stockId = stockId,
             timeInMinutes = selectedTimeInMinutes,
             quantity = quantity,
@@ -283,8 +263,50 @@ class AddEditDoseDialog : DialogFragment() {
             isActive = binding.switchActive.isChecked
         )
 
-        onSaveListener?.invoke(dose)
-        dismiss()
+        // 2. Invoke the listener to save/update the dose in the database
+        onSaveListener?.invoke(newOrUpdatedDose)
+
+        lifecycleScope.launch {
+            Log.d(TAG, "saveDoseAndScheduleAlarm: started lifecycleScope")
+            try {
+                withContext(Dispatchers.IO) {
+                    val db = AppDatabase.getDatabase(requireContext())
+                    val stock = db.medicineStockDao().getById(newOrUpdatedDose.stockId)
+                    Log.d(TAG, "lifecycleScope try get stock $stock")
+                    val patient = db.patientDao().getById(patientId)
+                    Log.d(TAG, "lifecycleScope try get patient $patient")
+
+                    if (patient != null) {
+                        scheduler.scheduleReminderDose(
+                            newOrUpdatedDose,
+                            selectedStockInfo.name,
+                            patient.name,
+                            stock!!.masterMedicineId
+                        )
+                        Log.d(TAG, "Alarm scheduled/updated for Dose ID ${newOrUpdatedDose.doseId}")
+                    } else {
+                        Log.e(
+                            TAG,
+                            "Could not schedule alarm: Patient not found for ID ${newOrUpdatedDose.patientId}"
+                        )
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    dismiss()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during alarm scheduling: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Dose saved but alarm scheduling failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    dismiss()
+                }
+            }
+        }
+
     }
 
     override fun onDestroyView() {

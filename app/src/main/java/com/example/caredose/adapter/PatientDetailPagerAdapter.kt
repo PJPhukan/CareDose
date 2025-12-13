@@ -3,7 +3,7 @@ package com.example.caredose.ui.patient
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.example.caredose.ui.patient.tabs.DoseScheduleFragment
+import com.example.caredose.DoseScheduleFragment
 import com.example.caredose.ui.patient.tabs.MedicineStockFragment
 import com.example.caredose.ui.patient.tabs.VitalsFragment
 

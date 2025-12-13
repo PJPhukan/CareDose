@@ -1,6 +1,7 @@
 package com.example.caredose.database.dao
 
 import androidx.room.*
+import com.example.caredose.database.entities.Dose
 import com.example.caredose.database.entities.MedicineStock
 import kotlinx.coroutines.flow.Flow
 
@@ -36,4 +37,11 @@ interface MedicineStockDao {
 
     @Query("SELECT * FROM medicine_stock WHERE patientId = :patientId AND stockQty <= reminderStockThreshold AND isReminderEnabled = 1")
     suspend fun getLowStockForPatient(patientId: Long): List<MedicineStock>
+
+
+    @Query("SELECT * FROM doses WHERE isActive = 1")
+    suspend fun getAllActiveDoses(): List<Dose>
+
+    @Query("SELECT * FROM doses WHERE isActive = 1 AND patientId = :patientId")
+    suspend fun getActiveDosesByPatient(patientId: Long): List<Dose>
 }

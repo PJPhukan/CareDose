@@ -1,4 +1,4 @@
-package com.example.caredose.ui.patient.tabs
+package com.example.caredose
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,24 +8,24 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.caredose.adapter.DoseAdapter
+import com.example.caredose.alarm.CareDoseAlarmDoseManager
 import com.example.caredose.database.AppDatabase
 import com.example.caredose.database.entities.Dose
 import com.example.caredose.databinding.FragmentDoseScheduleBinding
 import com.example.caredose.repository.DoseRepository
-import com.example.caredose.repository.MedicineStockRepository
-import com.example.caredose.ui.patient.dialogs.AddEditDoseDialog
 import com.example.caredose.viewmodels.DoseViewModel
 import com.example.caredose.viewmodels.ViewModelFactory
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class DoseScheduleFragment : Fragment() {
-
+    private lateinit var scheduler: CareDoseAlarmDoseManager
     private var _binding: FragmentDoseScheduleBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var viewModel: DoseViewModel
     private lateinit var adapter: DoseAdapter
     private var patientId: Long = 0
+
 
     companion object {
         private const val ARG_PATIENT_ID = "patient_id"
@@ -55,7 +55,7 @@ class DoseScheduleFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        scheduler = CareDoseAlarmDoseManager(requireContext())
         setupViewModel()
         setupRecyclerView()
         setupFab()
@@ -65,7 +65,7 @@ class DoseScheduleFragment : Fragment() {
     private fun setupViewModel() {
         val db = AppDatabase.getDatabase(requireContext())
         val factory = ViewModelFactory(
-            doseRepository = DoseRepository(db.doseDao())
+            doseRepository = DoseRepository(db.doseDao(), db.medicineStockDao(), db.doseLogDao())
         )
 
         viewModel = ViewModelProvider(this, factory)[DoseViewModel::class.java]
@@ -79,6 +79,9 @@ class DoseScheduleFragment : Fragment() {
             },
             onDeleteClick = { dose ->
                 showDeleteConfirmation(dose)
+            },
+            onMarkTakenClick = { dose ->
+                viewModel.markDoseTaken(dose)
             }
         )
 
@@ -128,6 +131,7 @@ class DoseScheduleFragment : Fragment() {
             .setMessage("Are you sure you want to delete this dose schedule?")
             .setPositiveButton("Delete") { _, _ ->
                 viewModel.deleteDose(dose)
+                scheduler.cancelScheduleReminder(dose)
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -137,4 +141,6 @@ class DoseScheduleFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
+
 }

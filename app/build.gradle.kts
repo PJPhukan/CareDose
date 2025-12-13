@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.caredose"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -62,4 +62,6 @@ dependencies {
 
     //For graph
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    implementation("androidx.startup:startup-runtime:1.1.1")
 }

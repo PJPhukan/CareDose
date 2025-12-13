@@ -21,6 +21,8 @@ data class DoseLog(
     @PrimaryKey(autoGenerate = true)
     val logId: Long = 0,
     val doseId: Long,
-    val takenAt: Long = System.currentTimeMillis(),
-    val qtyTaken: Int = 1
+    val quantityTaken: Int = 1,
+    val stockBefore: Int = 0,
+    val stockAfter: Int = 0,
+    val timestamp: Long
 )

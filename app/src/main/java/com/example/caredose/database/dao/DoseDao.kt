@@ -32,7 +32,16 @@ interface DoseDao {
     @Query("DELETE FROM doses WHERE stockId = :stockId")
     suspend fun deleteAllForMedicineStock(stockId: Long)
 
+    @Query("UPDATE doses SET isTakenToday = 0")
+    suspend fun resetAllDoses()
 
+    @Query("SELECT * FROM doses WHERE isActive = 1")
+    suspend fun getAllActiveDoses(): List<Dose>
+
+    @Query("UPDATE doses SET isTakenToday = 1, lastTakenAt = :timestamp WHERE doseId = :doseId")
+    suspend fun markAsTaken(doseId: Long, timestamp: Long)
     @Query("DELETE FROM doses WHERE patientId = :patientId")
     suspend fun deleteAllForPatient(patientId: Long)
+
+
 }

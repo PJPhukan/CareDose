@@ -34,6 +34,8 @@ data class Dose(
     val quantity: Int = 1,  // Number of tablets/units per dose
     val isActive: Boolean = true,
     val reminderMinutesBefore : Int,
+    val isTakenToday: Boolean = false,
+    val lastTakenAt: Long = 0,
     @PrimaryKey(autoGenerate = true)
     val doseId: Long = 0,
     val createdAt: Long = System.currentTimeMillis()

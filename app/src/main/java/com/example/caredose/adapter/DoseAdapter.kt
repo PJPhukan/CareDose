@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 class DoseAdapter(
     private val onEditClick: (Dose) -> Unit,
-    private val onDeleteClick: (Dose) -> Unit
+    private val onDeleteClick: (Dose) -> Unit,
+    private val onMarkTakenClick: (Dose) -> Unit
 ) : ListAdapter<Dose, DoseAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -55,9 +56,29 @@ class DoseAdapter(
                             android.graphics.Color.parseColor("#F44336")
                     )
 
+                    if (dose.isTakenToday) {
+                        binding.btnMarkTaken.text = "✓ Taken"
+                        binding.btnMarkTaken.isEnabled = false // Disable after taking
+                        // Optional: change color to gray
+                        binding.btnMarkTaken.alpha = 0.5f
+                    } else {
+                        binding.btnMarkTaken.text = "Mark Taken"
+                        binding.btnMarkTaken.isEnabled = dose.isActive // Only enable if the dose is active
+                        binding.btnMarkTaken.alpha = 1.0f
+                    }
+
                     btnEdit.setOnClickListener { onEditClick(dose) }
                     btnDelete.setOnClickListener { onDeleteClick(dose) }
                     root.setOnClickListener { onEditClick(dose) }
+
+                    binding.btnMarkTaken.setOnClickListener {
+                        // Check if enabled (prevent double click race condition)
+                        if (binding.btnMarkTaken.isEnabled) {
+                            // Optimistically disable the button immediately
+                            binding.btnMarkTaken.isEnabled = false
+                            onMarkTakenClick(dose)
+                        }
+                    }
                 }
             }
         }

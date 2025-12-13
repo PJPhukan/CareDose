@@ -49,7 +49,7 @@ class PatientDetailActivity : AppCompatActivity() {
 
         val factory = ViewModelFactory(
             medicineStockRepository = MedicineStockRepository(db.medicineStockDao()),
-            doseRepository = DoseRepository(db.doseDao()),
+            doseRepository = DoseRepository(db.doseDao(),db.medicineStockDao(),db.doseLogDao()),
             vitalRepository = VitalRepository(db.vitalDao())
         )
 
@@ -57,7 +57,7 @@ class PatientDetailActivity : AppCompatActivity() {
         doseViewModel = ViewModelProvider(this, factory)[DoseViewModel::class.java]
         vitalViewModel = ViewModelProvider(this, factory)[VitalViewModel::class.java]
 
-        // Set patient ID for all ViewModels
+
         medicineStockViewModel.setPatientId(patientId)
         doseViewModel.setPatientId(patientId)
         vitalViewModel.setPatientId(patientId)

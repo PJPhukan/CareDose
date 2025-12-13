@@ -41,6 +41,12 @@ class DoseViewModel(
         }
     }
 
+    fun markDoseTaken(dose: Dose) {
+        viewModelScope.launch {
+            repository.markDoseTaken(dose)
+        }
+    }
+
     fun deleteDose(dose: Dose) {
         viewModelScope.launch {
             repository.delete(dose)
