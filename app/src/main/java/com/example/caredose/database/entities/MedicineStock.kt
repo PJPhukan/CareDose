@@ -11,9 +11,9 @@ import kotlinx.parcelize.Parcelize
     tableName = "medicine_stock",
     foreignKeys = [
         ForeignKey(
-            entity = Patient::class,
-            parentColumns = ["patientId"],
-            childColumns = ["patientId"],
+            entity = User::class,
+            parentColumns = ["userId"],
+            childColumns = ["userId"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
@@ -23,13 +23,13 @@ import kotlinx.parcelize.Parcelize
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("patientId"), Index("masterMedicineId")]
+    indices = [Index("userId"), Index("masterMedicineId")]
 )
 @Parcelize
 data class MedicineStock(
     @PrimaryKey(autoGenerate = true)
     val stockId: Long = 0,
-    val patientId: Long,
+    val userId: Long,
     val masterMedicineId: Long,
     var stockQty: Int,
     val reminderStockThreshold: Int = 5,

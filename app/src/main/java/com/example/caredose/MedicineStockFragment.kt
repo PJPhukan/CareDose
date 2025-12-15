@@ -6,17 +6,19 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.caredose.adapter.MedicineStockAdapter
 import com.example.caredose.database.AppDatabase
 import com.example.caredose.database.entities.MedicineStock
 import com.example.caredose.databinding.FragmentMedicineStockBinding
-import com.example.caredose.repository.MasterMedicineRepository
 import com.example.caredose.repository.MedicineStockRepository
 import com.example.caredose.ui.patient.dialogs.AddEditMedicineStockDialog
+import com.example.caredose.ui.patient.dialogs.QuickAddStockDialog
 import com.example.caredose.viewmodels.MedicineStockViewModel
 import com.example.caredose.viewmodels.ViewModelFactory
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 
 class MedicineStockFragment : Fragment() {
 
@@ -26,6 +28,8 @@ class MedicineStockFragment : Fragment() {
     private lateinit var viewModel: MedicineStockViewModel
     private lateinit var adapter: MedicineStockAdapter
     private var patientId: Long = 0
+    private var userId: Long = 0
+    private var isViewModelInitialized = false
 
     companion object {
         private const val ARG_PATIENT_ID = "patient_id"
@@ -42,6 +46,21 @@ class MedicineStockFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         patientId = arguments?.getLong(ARG_PATIENT_ID) ?: 0
+
+        // Get userId from patientId
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(requireContext())
+            val patient = db.patientDao().getById(patientId)
+            userId = patient?.userId ?: 0
+
+            // Setup ViewModel after getting userId
+            setupViewModel()
+
+            // Now that ViewModel is initialized, observe data
+            if (_binding != null) {
+                observeData()
+            }
+        }
     }
 
     override fun onCreateView(
@@ -56,10 +75,15 @@ class MedicineStockFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupViewModel()
         setupRecyclerView()
         setupFab()
-        observeData()
+
+        // Only observe data if viewModel is already initialized
+        if (isViewModelInitialized) {
+            observeData()
+        }
+
+        checkForHighlightRequest()
     }
 
     private fun setupViewModel() {
@@ -69,7 +93,8 @@ class MedicineStockFragment : Fragment() {
         )
 
         viewModel = ViewModelProvider(this, factory)[MedicineStockViewModel::class.java]
-        viewModel.setPatientId(patientId)
+        viewModel.setUserId(userId)
+        isViewModelInitialized = true
     }
 
     private fun setupRecyclerView() {
@@ -81,10 +106,10 @@ class MedicineStockFragment : Fragment() {
                 showDeleteConfirmation(stock)
             },
             onIncrementStock = { stock ->
-                viewModel.incrementStock(stock.stockId, 1)
+                showQuickAddStockDialog(stock)
             },
             onDecrementStock = { stock ->
-                if (stock.stockQty > 0) {
+                if (isViewModelInitialized && stock.stockQty > 0) {
                     viewModel.decrementStock(
                         stock.stockId,
                         1,
@@ -110,6 +135,8 @@ class MedicineStockFragment : Fragment() {
     }
 
     private fun observeData() {
+        if (!isViewModelInitialized) return
+
         viewModel.medicineStocks.observe(viewLifecycleOwner) { stocks ->
             adapter.submitList(stocks)
 
@@ -119,12 +146,70 @@ class MedicineStockFragment : Fragment() {
             } else {
                 binding.rvMedicineStock.visibility = View.VISIBLE
                 binding.tvEmptyState.visibility = View.GONE
+
+                // Scroll to highlighted item if needed
+                scrollToHighlightedItem(stocks)
             }
         }
     }
 
+    private fun checkForHighlightRequest() {
+        // Check if we need to highlight a specific medicine from notification
+        val prefs = requireActivity().getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+        val highlightStockId = prefs.getLong("highlight_stock_id", -1)
+
+        if (highlightStockId != -1L) {
+            // Clear the preference
+            prefs.edit().remove("highlight_stock_id").apply()
+
+            // Show a message to add stock
+            com.google.android.material.snackbar.Snackbar.make(
+                binding.root,
+                "⚠️ Please add stock for this medicine",
+                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun scrollToHighlightedItem(stocks: List<MedicineStock>) {
+        val prefs = requireActivity().getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+        val highlightStockId = prefs.getLong("highlight_stock_id", -1)
+
+        if (highlightStockId != -1L) {
+            val position = stocks.indexOfFirst { it.stockId == highlightStockId }
+            if (position != -1) {
+                binding.rvMedicineStock.scrollToPosition(position)
+
+                // Optionally, open the edit dialog automatically
+                binding.rvMedicineStock.postDelayed({
+                    showAddEditDialog(stocks[position])
+                }, 300)
+            }
+        }
+    }
+
+    private fun showQuickAddStockDialog(stock: MedicineStock) {
+        lifecycleScope.launch {
+            // Get medicine name
+            val db = AppDatabase.getDatabase(requireContext())
+            val medicine = db.masterMedicineDao().getById(stock.masterMedicineId)
+            val medicineName = medicine?.name ?: "Medicine"
+
+            val dialog = QuickAddStockDialog.newInstance(stock, medicineName)
+
+            dialog.setOnStockUpdatedListener { quantity ->
+                // Stock is already updated in database by the dialog
+                // LiveData will automatically refresh the list
+            }
+
+            dialog.show(childFragmentManager, "QuickAddStockDialog")
+        }
+    }
+
     private fun showAddEditDialog(existingStock: MedicineStock?) {
-        val dialog = AddEditMedicineStockDialog.newInstance(patientId, existingStock)
+        if (!isViewModelInitialized) return
+
+        val dialog = AddEditMedicineStockDialog.newInstance(userId, existingStock)
 
         dialog.setOnSaveListener { stock ->
             if (existingStock == null) {
@@ -138,6 +223,8 @@ class MedicineStockFragment : Fragment() {
     }
 
     private fun showDeleteConfirmation(stock: MedicineStock) {
+        if (!isViewModelInitialized) return
+
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete Medicine Stock")
             .setMessage("Are you sure you want to delete this medicine? This will also delete all associated dose schedules.")

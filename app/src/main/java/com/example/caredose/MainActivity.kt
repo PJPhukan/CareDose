@@ -21,6 +21,8 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.example.caredose.alarm.MidnightRescheduleScheduler
+import com.example.caredose.alarm.StockReminderScheduler
 import com.example.caredose.database.AppDatabase
 import com.example.caredose.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -42,7 +44,6 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        Log.d(TAG, "Notification permission result: $isGranted")
         if (isGranted) {
             Toast.makeText(this, "✓ Notification permission granted", Toast.LENGTH_SHORT).show()
             // After notification permission, check exact alarm
@@ -62,7 +63,6 @@ class MainActivity : AppCompatActivity() {
     private val exactAlarmSettingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        Log.d(TAG, "Returned from exact alarm settings")
         if (canScheduleExactAlarms()) {
             Toast.makeText(this, "✓ Exact alarm permission granted", Toast.LENGTH_SHORT).show()
         } else {
@@ -76,12 +76,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate started")
 
         sessionManager = SessionManager(this)
         database = AppDatabase.getDatabase(this)
 
-        // Check if logged in
         if (!sessionManager.isLoggedIn()) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
@@ -104,14 +102,38 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
-        // Load and display user name
         loadUserName()
 
-        // ✅ Request permissions on first launch
-        Log.d(TAG, "Requesting permissions...")
         requestAllPermissions()
+//        initializeStockReminders()
+        handleStockReminderIntent(intent)
     }
+//    private fun initializeStockReminders() {
+//        val stockReminderScheduler = StockReminderScheduler(this)
+//        if (!stockReminderScheduler.areStockRemindersScheduled()) {
+//            stockReminderScheduler.scheduleStockReminders()
+//            Log.d(TAG, "📅 Stock reminders initialized for the first time")
+//        } else {
+//            Log.d(TAG, "✅ Stock reminders already scheduled, skipping")
+//        }
+//    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleStockReminderIntent(intent)
+    }
+    private fun handleStockReminderIntent(intent: Intent?) {
+        val openStockScreen = intent?.getBooleanExtra("open_stock_screen", false) ?: false
 
+        if (openStockScreen) {
+            // TODO: Navigate to your medicine stock screen/fragment
+            // Example:
+            // val fragment = MedicineStockFragment()
+            // supportFragmentManager.beginTransaction()
+            //     .replace(R.id.fragment_container, fragment)
+            //     .commit()
+
+        }
+    }
     private fun loadUserName() {
         val userId = sessionManager.getUserId() ?: return
 
@@ -124,39 +146,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    // ✅ Request all necessary permissions
     private fun requestAllPermissions() {
-        Log.d(TAG, "Android Version: ${Build.VERSION.SDK_INT}")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Log.d(TAG, "Android 13+, checking notification permission...")
             checkNotificationPermission()
         } else {
-            Log.d(TAG, "Android 12 or lower, skipping notification permission")
             checkExactAlarmPermission()
         }
     }
 
-    // ✅ Check and request notification permission (Android 13+)
+
     private fun checkNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = Manifest.permission.POST_NOTIFICATIONS
             val isGranted = ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
-            Log.d(TAG, "Notification permission granted: $isGranted")
-
             when {
                 isGranted -> {
-                    Log.d(TAG, "Notification permission already granted")
                     checkExactAlarmPermission()
                 }
                 shouldShowRequestPermissionRationale(permission) -> {
-                    Log.d(TAG, "Showing notification permission rationale")
                     showNotificationPermissionRationale()
                 }
                 else -> {
-                    Log.d(TAG, "Requesting notification permission")
                     notificationPermissionLauncher.launch(permission)
                     hasAskedForNotificationPermission = true
                 }
@@ -164,7 +176,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ Show rationale for notification permission
     private fun showNotificationPermissionRationale() {
         AlertDialog.Builder(this)
             .setTitle("Enable Notifications")
@@ -182,54 +193,35 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ✅ Check and request exact alarm permission (Android 12+)
     private fun checkExactAlarmPermission() {
-        Log.d(TAG, "checkExactAlarmPermission called")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val canSchedule = canScheduleExactAlarms()
-            Log.d(TAG, "Can schedule exact alarms: $canSchedule")
-            Log.d(TAG, "Already asked for alarm permission: $hasAskedForAlarmPermission")
-
             if (!canSchedule && !hasAskedForAlarmPermission) {
-                Log.d(TAG, "Showing exact alarm permission dialog")
                 showExactAlarmPermissionDialog()
-            } else if (canSchedule) {
-                Log.d(TAG, "Exact alarm permission already granted")
-            } else {
-                Log.d(TAG, "User already denied alarm permission")
             }
-        } else {
-            Log.d(TAG, "Android 11 or lower, exact alarm permission not needed")
         }
     }
 
-    // ✅ Check if app can schedule exact alarms
     private fun canScheduleExactAlarms(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             val result = alarmManager.canScheduleExactAlarms()
-            Log.d(TAG, "canScheduleExactAlarms result: $result")
             result
         } else {
-            Log.d(TAG, "canScheduleExactAlarms: true (Android < 12)")
             true
         }
     }
 
-    // ✅ Show dialog to enable exact alarm permission
     private fun showExactAlarmPermissionDialog() {
-        Log.d(TAG, "Showing exact alarm dialog")
         AlertDialog.Builder(this)
             .setTitle("Enable Dose Reminders")
             .setMessage("CareDose needs permission to schedule exact alarms to remind you at the right time to take medicine.\n\nPlease enable 'Alarms & reminders' in the next screen.")
             .setPositiveButton("Open Settings") { _, _ ->
-                Log.d(TAG, "User clicked Open Settings")
                 openExactAlarmSettings()
                 hasAskedForAlarmPermission = true
             }
             .setNegativeButton("Later") { dialog, _ ->
-                Log.d(TAG, "User clicked Later")
                 dialog.dismiss()
                 hasAskedForAlarmPermission = true
             }
@@ -237,17 +229,14 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ✅ Open exact alarm settings
     private fun openExactAlarmSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                Log.d(TAG, "Opening exact alarm settings")
                 val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                     data = Uri.parse("package:$packageName")
                 }
                 exactAlarmSettingsLauncher.launch(intent)
             } catch (e: Exception) {
-                Log.e(TAG, "Error opening settings: ${e.message}")
                 Toast.makeText(
                     this,
                     "Could not open settings. Please enable manually in Settings > Apps > CareDose",
@@ -260,11 +249,8 @@ class MainActivity : AppCompatActivity() {
     // ✅ Check if permissions were granted when returning from settings
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "onResume called")
-
         if (hasAskedForAlarmPermission) {
             val canSchedule = canScheduleExactAlarms()
-            Log.d(TAG, "onResume - Can schedule exact alarms: $canSchedule")
         }
     }
 

@@ -36,6 +36,10 @@ class DashboardFragment : Fragment() {
     private lateinit var sessionManager: SessionManager
     private var dateRangeDays = 7 // Default 7 days
 
+    // ✅ Flags to track if we've auto-selected
+    private var hasAutoSelectedPatient = false
+    private var hasAutoSelectedVital = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -76,6 +80,7 @@ class DashboardFragment : Fragment() {
         binding.actvPatient.setOnItemClickListener { _, _, position, _ ->
             val patients = viewModel.patients.value ?: return@setOnItemClickListener
             if (position < patients.size) {
+                android.util.Log.d("DashboardFragment", "Patient selected: ${patients[position].name}")
                 viewModel.selectPatient(patients[position].patientId)
             }
         }
@@ -84,31 +89,66 @@ class DashboardFragment : Fragment() {
         binding.actvVitalType.setOnItemClickListener { _, _, position, _ ->
             val vitalTypes = viewModel.vitalTypes.value ?: return@setOnItemClickListener
             if (position < vitalTypes.size) {
+                android.util.Log.d("DashboardFragment", "Vital selected: ${vitalTypes[position].name}")
                 viewModel.selectVitalType(vitalTypes[position].vitalId)
                 binding.cardDateRange.visibility = View.VISIBLE
 
+                // ✅ Always reload data when vital is selected (even if same vital)
+                android.util.Log.d("DashboardFragment", "Loading data for $dateRangeDays days")
                 viewModel.loadVitalsData(dateRangeDays)
             }
         }
 
-        // Date range filter
-        // FIX 1: Set the default chip selection visually
+        // ✅ Date range filter - Use ChipGroup.OnCheckedStateChangeListener (correct API)
         binding.chip7Days.isChecked = true
 
         binding.chipGroupDateRange.setOnCheckedStateChangeListener { group, checkedIds ->
-            val checkedId = checkedIds.firstOrNull() ?: -1
+            android.util.Log.d("DashboardFragment", "Chips checked state changed: $checkedIds")
+
+            if (checkedIds.isEmpty()) {
+                android.util.Log.w("DashboardFragment", "No chip selected")
+                return@setOnCheckedStateChangeListener
+            }
+
+            val checkedId = checkedIds.first()
+            android.util.Log.d("DashboardFragment", "Checked chip ID: $checkedId")
 
             dateRangeDays = when (checkedId) {
-                R.id.chip7Days -> 7
-                R.id.chip30Days -> 30
-                R.id.chip90Days -> 90
-                R.id.chipAllTime -> 365 * 10
-                else -> 7
+                R.id.chip7Days -> {
+                    android.util.Log.d("DashboardFragment", "7 Days selected")
+                    7
+                }
+                R.id.chip30Days -> {
+                    android.util.Log.d("DashboardFragment", "30 Days selected")
+                    30
+                }
+                R.id.chip90Days -> {
+                    android.util.Log.d("DashboardFragment", "90 Days selected")
+                    90
+                }
+                R.id.chipAllTime -> {
+                    android.util.Log.d("DashboardFragment", "All Time selected")
+                    3650
+                }
+                else -> {
+                    android.util.Log.e("DashboardFragment", "Unknown chip ID: $checkedId")
+                    7
+                }
             }
 
-            if (viewModel.selectedVitalType.value != null) {
-                viewModel.loadVitalsData(dateRangeDays)
-            }
+            android.util.Log.d("DashboardFragment", "Date range changed to: $dateRangeDays days")
+            reloadDataIfVitalSelected()
+        }
+    }
+
+    // ✅ Helper function to reload data if vital is selected
+    private fun reloadDataIfVitalSelected() {
+        android.util.Log.d("DashboardFragment", "reloadDataIfVitalSelected called")
+        if (viewModel.selectedVitalType.value != null) {
+            android.util.Log.d("DashboardFragment", "Reloading data for $dateRangeDays days")
+            viewModel.loadVitalsData(dateRangeDays)
+        } else {
+            android.util.Log.w("DashboardFragment", "No vital type selected")
         }
     }
 
@@ -127,6 +167,13 @@ class DashboardFragment : Fragment() {
                 patientNames
             )
             binding.actvPatient.setAdapter(adapter)
+
+            // ✅ Auto-select first patient if not already selected
+            if (!hasAutoSelectedPatient && patients.isNotEmpty()) {
+                hasAutoSelectedPatient = true
+                binding.actvPatient.setText(patients[0].name, false)
+                viewModel.selectPatient(patients[0].patientId)
+            }
         }
 
         // Observe vital types
@@ -145,12 +192,27 @@ class DashboardFragment : Fragment() {
                 vitalTypeNames
             )
             binding.actvVitalType.setAdapter(adapter)
+
+            // ✅ Auto-select first vital type if not already selected
+            if (!hasAutoSelectedVital && vitalTypes.isNotEmpty()) {
+                hasAutoSelectedVital = true
+                binding.actvVitalType.setText(vitalTypes[0].name, false)
+                viewModel.selectVitalType(vitalTypes[0].vitalId)
+                binding.cardDateRange.visibility = View.VISIBLE
+                viewModel.loadVitalsData(dateRangeDays)
+            }
         }
 
         // Observe vitals data
         viewModel.vitalsData.observe(viewLifecycleOwner) { vitals ->
+            android.util.Log.d("DashboardFragment", "Vitals data received: ${vitals.size} records")
             if (vitals.isNotEmpty()) {
                 displayGraph(vitals)
+            } else {
+                // ✅ Show empty state when no data
+                android.util.Log.w("DashboardFragment", "No vitals data available")
+                binding.cardGraph.visibility = View.GONE
+                // Don't show snackbar here, as the state observer will handle it
             }
         }
 
@@ -163,7 +225,7 @@ class DashboardFragment : Fragment() {
             }
         }
 
-        // Observe state (UPDATED for States sealed class)
+        // Observe state
         viewModel.state.observe(viewLifecycleOwner) { state ->
             when (state) {
                 is States.Idle -> {
@@ -174,6 +236,16 @@ class DashboardFragment : Fragment() {
                 }
                 is States.Success -> {
                     binding.progressBar.visibility = View.GONE
+
+                    // ✅ Check if we have empty data after successful load
+                    val vitals = viewModel.vitalsData.value
+                    if (vitals.isNullOrEmpty()) {
+                        Snackbar.make(
+                            binding.root,
+                            "No data available for the selected period",
+                            Snackbar.LENGTH_SHORT
+                        ).show()
+                    }
                 }
                 is States.Error -> {
                     binding.progressBar.visibility = View.GONE
@@ -188,9 +260,9 @@ class DashboardFragment : Fragment() {
         binding.cardGraph.visibility = View.VISIBLE
         binding.emptyState.visibility = View.GONE
 
-        // FIX 1: Prepare data for chart using INDEX as the X-value (0, 1, 2, ...)
+        // Prepare data for chart using INDEX as the X-value
         val entries = vitals.mapIndexed { index, vital ->
-            Entry(index.toFloat(), vital.value.toFloat()) // Use index for X-axis position
+            Entry(index.toFloat(), vital.value.toFloat())
         }
 
         // Configure dataset
@@ -224,12 +296,10 @@ class DashboardFragment : Fragment() {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
 
-                // FIX 2: ValueFormatter correctly uses the index (value) to retrieve the date
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         val index = value.toInt()
                         return if (index >= 0 && index < vitals.size) {
-                            // Date is looked up using the index from the vitals list
                             val date = Date(vitals[index].recordedAt)
                             SimpleDateFormat("MMM dd", Locale.getDefault()).format(date)
                         } else {
@@ -237,10 +307,8 @@ class DashboardFragment : Fragment() {
                         }
                     }
                 }
-                // FIX 3: Remove conflicting granularity to allow setLabelCount to control all labels
-                // granularity = 1f
                 labelRotationAngle = -45f
-                setLabelCount(vitals.size, true) // Ensure labels match data points
+                setLabelCount(vitals.size, true)
             }
 
             // Y-Axis - Left
@@ -256,6 +324,7 @@ class DashboardFragment : Fragment() {
             invalidate()
         }
     }
+
     private fun showEmptyState() {
         binding.emptyState.visibility = View.VISIBLE
         binding.cardGraph.visibility = View.GONE

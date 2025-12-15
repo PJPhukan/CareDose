@@ -13,14 +13,15 @@ class MedicineStockViewModel(
     private val repository: MedicineStockRepository
 ) : ViewModel() {
 
-    private val _patientId = MutableStateFlow(0L)
+    private val _userId = MutableStateFlow(0L)
 
-    val medicineStocks = _patientId.flatMapLatest { patientId ->
-        repository.getStockByPatient(patientId)
+    // Changed from patient-based to user-based
+    val medicineStocks = _userId.flatMapLatest { userId ->
+        repository.getStockByUser(userId)
     }.asLiveData()
 
-    fun setPatientId(patientId: Long) {
-        _patientId.value = patientId
+    fun setUserId(userId: Long) {
+        _userId.value = userId
     }
 
     fun addStock(stock: MedicineStock) {
@@ -41,16 +42,25 @@ class MedicineStockViewModel(
         }
     }
 
-    fun incrementStock(stockId: Long, qty: Int) {
+    fun incrementStock(stockId: Long, quantity: Int) {
         viewModelScope.launch {
-            repository.incrementStock(stockId, qty)
+            repository.incrementStock(stockId, quantity)
         }
     }
 
-    fun decrementStock(stockId: Long, qty: Int, onSuccess: () -> Unit, onFailed: () -> Unit) {
+    fun decrementStock(
+        stockId: Long,
+        quantity: Int,
+        onSuccess: () -> Unit = {},
+        onFailed: () -> Unit = {}
+    ) {
         viewModelScope.launch {
-            val success = repository.decrementStock(stockId, qty)
-            if (success) onSuccess() else onFailed()
+            val result = repository.decrementStock(stockId, quantity)
+            if (result > 0) {
+                onSuccess()
+            } else {
+                onFailed()
+            }
         }
     }
 }

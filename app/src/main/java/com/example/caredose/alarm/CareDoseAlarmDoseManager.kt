@@ -29,6 +29,9 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
             Log.d(TAG, "scheduleReminderDose: Dose ${dose.doseId} is not active")
             return
         }
+        if(dose.isTakenToday){
+            return
+        }
 
         // Get times from the dose
         val doseHour = dose.timeInMinutes / 60
@@ -49,7 +52,6 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
 
             )
             putExtra(ReminderDoseReceiver.EXTRA_QUANTITY, dose.quantity)
-            // ADD THESE IMPORTANT EXTRAS FOR STOCK CHECKING
             putExtra(ReminderDoseReceiver.EXTRA_PATIENT_ID, dose.patientId)
             putExtra(ReminderDoseReceiver.EXTRA_MEDICINE_ID, medicineId)
         }

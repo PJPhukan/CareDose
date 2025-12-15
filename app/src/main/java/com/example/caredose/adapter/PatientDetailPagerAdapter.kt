@@ -16,8 +16,8 @@ class PatientDetailPagerAdapter(
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> MedicineStockFragment.newInstance(patientId)
-            1 -> DoseScheduleFragment.newInstance(patientId)
+            0 -> DoseScheduleFragment.newInstance(patientId)
+            1 -> MedicineStockFragment.newInstance(patientId)
             2 -> VitalsFragment.newInstance(patientId)
             else -> throw IllegalArgumentException("Invalid position: $position")
         }

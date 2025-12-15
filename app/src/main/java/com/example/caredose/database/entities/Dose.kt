@@ -30,6 +30,7 @@ data class Dose(
 
     val stockId: Long,
     val patientId: Long,
+    val medicineId: Long,
     val timeInMinutes: Int,  // Minutes since midnight (e.g., 540 = 9:00 AM)
     val quantity: Int = 1,  // Number of tablets/units per dose
     val isActive: Boolean = true,

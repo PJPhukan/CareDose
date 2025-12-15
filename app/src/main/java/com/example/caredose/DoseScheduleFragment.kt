@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.caredose.adapter.DoseAdapter
 import com.example.caredose.alarm.CareDoseAlarmDoseManager
@@ -16,6 +17,7 @@ import com.example.caredose.repository.DoseRepository
 import com.example.caredose.viewmodels.DoseViewModel
 import com.example.caredose.viewmodels.ViewModelFactory
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 
 class DoseScheduleFragment : Fragment() {
     private lateinit var scheduler: CareDoseAlarmDoseManager
@@ -114,11 +116,19 @@ class DoseScheduleFragment : Fragment() {
     private fun showAddEditDialog(existingDose: Dose?) {
         val dialog = AddEditDoseDialog.newInstance(patientId, existingDose)
 
-        dialog.setOnSaveListener { dose ->
-            if (existingDose == null) {
-                viewModel.addDose(dose)
-            } else {
-                viewModel.updateDose(dose)
+        dialog.setOnSaveListener { dose, callback ->
+            lifecycleScope.launch {
+                val savedDoseId = if (existingDose == null) {
+                    // Add new dose and get the ID
+                    viewModel.addDose(dose)
+                } else {
+                    // Update existing dose
+                    viewModel.updateDose(dose)
+                    dose.doseId // Return existing ID for updates
+                }
+
+                // Call the callback with the saved dose ID
+                callback(savedDoseId as Long)
             }
         }
 

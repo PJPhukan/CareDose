@@ -46,8 +46,8 @@ class BootReceiver : BroadcastReceiver() {
                 val patient = db.patientDao().getById(dose.patientId)
                 val masterMedicine = db.masterMedicineDao().getById(medicine!!.masterMedicineId)
                 if (patient != null) {
-                    alarmManager.scheduleReminderDose(dose, masterMedicine!!.name, patient.name,medicine.masterMedicineId)
-                    Log.d(TAG, "Rescheduled dose ${dose.doseId}")
+                    alarmManager.scheduleReminderDose(dose, masterMedicine!!.name, patient.name, medicine.masterMedicineId)
+                    Log.d(TAG, "✅ Rescheduled dose ${dose.doseId}")
                 }
             }
         }
@@ -55,5 +55,10 @@ class BootReceiver : BroadcastReceiver() {
         // Reschedule midnight reschedule
         val midnightScheduler = MidnightRescheduleScheduler(context)
         midnightScheduler.scheduleMidnightReschedule()
+
+        // ✅ NEW: Reschedule stock reminders
+        val stockReminderScheduler = StockReminderScheduler(context)
+        stockReminderScheduler.scheduleStockReminders()
+        Log.d(TAG, "✅ Stock reminders rescheduled")
     }
 }

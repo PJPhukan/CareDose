@@ -1,5 +1,6 @@
 package com.example.caredose.ui.dashboard
 
+import android.util.Log
 import androidx.lifecycle.*
 import com.example.caredose.States
 import com.example.caredose.database.entities.MasterVital
@@ -22,6 +23,10 @@ class DashboardViewModel(
     private val masterVitalRepository: MasterVitalRepository
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "DashboardViewModel"
+    }
+
     private val _state = MutableLiveData<States<Unit>>(States.Idle)
     val state: LiveData<States<Unit>> = _state
 
@@ -30,6 +35,7 @@ class DashboardViewModel(
 
     // Patients LiveData (user-specific)
     val patients: LiveData<List<Patient>> = _userId.switchMap { userId ->
+        Log.d(TAG, "Loading patients for userId: $userId")
         patientRepository.getPatientsByUser(userId).asLiveData()
     }
 
@@ -73,12 +79,14 @@ class DashboardViewModel(
     // Set user ID (call this from Fragment)
     fun setUserId(userId: Long) {
         if (_userId.value != userId) {
+            Log.d(TAG, "setUserId: $userId")
             _userId.value = userId
         }
     }
 
     // Select patient and load vital types
     fun selectPatient(patientId: Long) {
+        Log.d(TAG, "selectPatient called: $patientId")
         if (_selectedPatientId.value != patientId) {
             _selectedPatientId.value = patientId
             _selectedVitalTypeId.value = null
@@ -91,12 +99,15 @@ class DashboardViewModel(
     }
 
     private fun loadVitalTypesForPatient(patientId: Long) {
+        Log.d(TAG, "loadVitalTypesForPatient: $patientId")
         viewModelScope.launch {
             try {
                 _state.value = States.Loading
 
                 // Collect vitals as Flow
                 vitalRepository.getVitalsByPatient(patientId).collect { vitals ->
+                    Log.d(TAG, "Received ${vitals.size} vitals for patient $patientId")
+
                     if (vitals.isEmpty()) {
                         _vitalTypes.value = emptyList()
                         _state.value = States.Error("No vitals recorded for this patient")
@@ -105,9 +116,11 @@ class DashboardViewModel(
 
                     // Get unique vital type IDs
                     val uniqueVitalTypeIds = vitals.map { it.masterVitalId }.distinct()
+                    Log.d(TAG, "Unique vital type IDs: $uniqueVitalTypeIds")
                     loadMasterVitals(uniqueVitalTypeIds)
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading vital types: ${e.message}", e)
                 _state.value = States.Error("Failed to load vitals: ${e.message}")
             }
         }
@@ -119,23 +132,38 @@ class DashboardViewModel(
                 masterVitalRepository.getVitalById(id)
             }
 
+            Log.d(TAG, "Loaded ${vitalTypes.size} master vitals")
             _vitalTypes.postValue(vitalTypes)
             _state.postValue(States.Success(Unit))
 
         } catch (e: Exception) {
+            Log.e(TAG, "Error loading master vitals: ${e.message}", e)
             _state.postValue(States.Error("Failed to load vital types: ${e.message}"))
         }
     }
 
     fun selectVitalType(vitalTypeId: Long) {
-        if (_selectedVitalTypeId.value != vitalTypeId) {
-            _selectedVitalTypeId.value = vitalTypeId
-        }
+        Log.d(TAG, "selectVitalType called: $vitalTypeId")
+        // ✅ Always update the value, even if it's the same
+        // This allows reloading data when user selects the same vital again
+        _selectedVitalTypeId.value = vitalTypeId
     }
 
     fun loadVitalsData(dateRangeDays: Int) {
-        val patientId = _selectedPatientId.value ?: return
-        val vitalTypeId = _selectedVitalTypeId.value ?: return
+        val patientId = _selectedPatientId.value
+        val vitalTypeId = _selectedVitalTypeId.value
+
+        Log.d(TAG, "loadVitalsData called: dateRangeDays=$dateRangeDays, patientId=$patientId, vitalTypeId=$vitalTypeId")
+
+        if (patientId == null) {
+            Log.w(TAG, "Cannot load vitals: patientId is null")
+            return
+        }
+
+        if (vitalTypeId == null) {
+            Log.w(TAG, "Cannot load vitals: vitalTypeId is null")
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -145,16 +173,25 @@ class DashboardViewModel(
                 val endTime = System.currentTimeMillis()
                 val startTime = endTime - (dateRangeDays * 24 * 60 * 60 * 1000L)
 
+                Log.d(TAG, "Date range: startTime=$startTime, endTime=$endTime")
+                Log.d(TAG, "Loading vitals for patientId=$patientId, vitalTypeId=$vitalTypeId, days=$dateRangeDays")
+
                 // Get vitals in range
                 val allVitals = vitalRepository.getVitalsInRange(patientId, startTime, endTime)
+                Log.d(TAG, "Got ${allVitals.size} vitals in range")
+
                 val filteredVitals = allVitals
                     .filter { it.masterVitalId == vitalTypeId }
                     .sortedBy { it.recordedAt }
 
+                Log.d(TAG, "After filtering by vitalTypeId: ${filteredVitals.size} vitals")
+
                 if (filteredVitals.isEmpty()) {
+                    // ✅ Clear previous data and update UI
                     _vitalsData.value = emptyList()
                     _stats.value = null
-                    _state.value = States.Error("No data available for selected period")
+                    _state.value = States.Success(Unit) // Changed from Error to Success
+                    Log.w(TAG, "No vitals found for the selected period")
                     return@launch
                 }
 
@@ -166,11 +203,16 @@ class DashboardViewModel(
                     avg = if (values.isNotEmpty()) values.average() else 0.0
                 )
 
+                Log.d(TAG, "Stats calculated: min=${stats.min}, max=${stats.max}, avg=${stats.avg}")
+
                 _vitalsData.value = filteredVitals
                 _stats.value = stats
                 _state.value = States.Success(Unit)
 
+                Log.d(TAG, "Successfully loaded ${filteredVitals.size} vitals")
+
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading vitals data: ${e.message}", e)
                 _state.value = States.Error("Failed to load vitals: ${e.message}")
             }
         }

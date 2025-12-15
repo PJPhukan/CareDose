@@ -6,6 +6,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
@@ -27,6 +29,7 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         const val ACTION_DOSE_REMINDER = "com.example.caredose.DOSE_REMINDER"
         const val ACTION_MARK_TAKEN = "com.example.caredose.MARK_TAKEN"
         const val ACTION_ADD_STOCK = "com.example.caredose.ADD_STOCK"
+        const val ACTION_STOP_ALARM = "com.example.caredose.STOP_ALARM"
         const val EXTRA_DOSE_ID = "dose_id"
         const val EXTRA_MEDICINE_NAME = "medicine_name"
         const val EXTRA_PATIENT_NAME = "patient_name"
@@ -38,29 +41,24 @@ class ReminderDoseReceiver : BroadcastReceiver() {
 
         private const val CHANNEL_ID = "dose_reminder_channel"
         private const val CHANNEL_NAME = "Dose Reminders"
+
+        private var mediaPlayer: MediaPlayer? = null
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "📬 onReceive called with action: ${intent.action}")
 
         when (intent.action) {
-            ACTION_DOSE_REMINDER -> {
-                handleDoseReminder(context, intent)
-            }
-            ACTION_MARK_TAKEN -> {
-                handleMarkTaken(context, intent)
-            }
-            ACTION_ADD_STOCK -> {
-                handleAddStock(context, intent)
-            }
-            else -> {
-                Log.d(TAG, "⚠️ Wrong action received: ${intent.action}")
-            }
+            ACTION_DOSE_REMINDER -> handleDoseReminder(context, intent)
+            ACTION_MARK_TAKEN -> handleMarkTaken(context, intent)
+            ACTION_ADD_STOCK -> handleAddStock(context, intent)
+            ACTION_STOP_ALARM -> handleStopAlarm(context, intent)
+            else -> Log.d(TAG, "⚠️ Wrong action received: ${intent.action}")
         }
     }
 
     private fun handleDoseReminder(context: Context, intent: Intent) {
-        val doseId = intent.getIntExtra(EXTRA_DOSE_ID, -1)
+        val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
         val medicineName = intent.getStringExtra(EXTRA_MEDICINE_NAME) ?: "Unknown Medicine"
         val patientName = intent.getStringExtra(EXTRA_PATIENT_NAME) ?: "Unknown Patient"
         val doseTime = intent.getStringExtra(EXTRA_DOSE_TIME) ?: "Unknown Time"
@@ -75,29 +73,24 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         Log.d(TAG, "   Time: $doseTime")
         Log.d(TAG, "   Quantity: $quantity")
 
-        // Check stock availability before showing notification
+        playAlarmSound(context)
+
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getDatabase(context)
-                val medicineStock = db.medicineStockDao().getById(medicineId)
+                val dose = db.doseDao().getById(doseId)
+                val stockId = dose?.stockId ?: -1L
+                val medicineStock = db.medicineStockDao().getById(stockId)
                 val stockQty = medicineStock?.stockQty ?: 0
-                val stockId = medicineStock?.stockId ?: -1L
 
+                Log.d(TAG, "   Stock ID: $stockId")
                 Log.d(TAG, "   Current Stock: $stockQty")
 
                 withContext(Dispatchers.Main) {
                     showNotification(
-                        context,
-                        doseId,
-                        medicineName,
-                        patientName,
-                        doseTime,
-                        quantity,
-                        patientId,
-                        medicineId,
-                        stockQty,
-                        stockId
+                        context, doseId, medicineName, patientName, doseTime,
+                        quantity, patientId, medicineId, stockQty, stockId
                     )
                 }
             } catch (e: Exception) {
@@ -108,48 +101,92 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun playAlarmSound(context: Context) {
+        try {
+            stopAlarmSound()
+
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            mediaPlayer = MediaPlayer.create(context, alarmUri)
+
+            mediaPlayer?.apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build()
+                )
+                isLooping = true
+                start()
+                Log.d(TAG, "🔊 Alarm sound started")
+            }
+
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                stopAlarmSound()
+                Log.d(TAG, "⏱️ Alarm auto-stopped after 1 minute")
+            }, 60000)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error playing alarm: ${e.message}", e)
+        }
+    }
+
+    private fun stopAlarmSound() {
+        try {
+            mediaPlayer?.apply {
+                if (isPlaying) stop()
+                release()
+            }
+            mediaPlayer = null
+            Log.d(TAG, "🔇 Alarm stopped")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error stopping alarm: ${e.message}", e)
+        }
+    }
+
+    private fun handleStopAlarm(context: Context, intent: Intent) {
+        val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
+        Log.d(TAG, "⏹️ Stop alarm for dose: $doseId")
+
+        stopAlarmSound()
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(generateNotificationId(doseId))
+    }
+
     private fun handleMarkTaken(context: Context, intent: Intent) {
-        val doseId = intent.getIntExtra(EXTRA_DOSE_ID, -1)
-        val patientId = intent.getLongExtra(EXTRA_PATIENT_ID, -1)
-        val medicineId = intent.getLongExtra(EXTRA_MEDICINE_ID, -1)
+        val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
         val quantity = intent.getIntExtra(EXTRA_QUANTITY, 1)
+        val stockId = intent.getLongExtra(EXTRA_STOCK_ID, -1)
 
-        Log.d(TAG, "✅ Mark as taken clicked for dose: $doseId")
+        Log.d(TAG, "✅ Mark as taken: dose $doseId, stock $stockId")
 
-        // Dismiss the notification using unique notification ID
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        stopAlarmSound()
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(generateNotificationId(doseId))
 
-        // Save to database
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getDatabase(context)
-
-                // Check stock again before marking as taken
-                val medicineStock = db.medicineStockDao().getById(medicineId)
+                val medicineStock = db.medicineStockDao().getById(stockId)
                 val currentStock = medicineStock?.stockQty ?: 0
 
                 if (currentStock < quantity) {
-                    Log.w(TAG, "⚠️ Insufficient stock. Cannot mark as taken.")
+                    Log.w(TAG, "⚠️ Insufficient stock")
                     return@launch
                 }
 
                 val doseLog = DoseLog(
-                    doseId = doseId.toLong(),
+                    doseId = doseId,
                     quantityTaken = quantity,
                     stockBefore = currentStock,
                     stockAfter = currentStock - quantity,
                     timestamp = Date().time
                 )
                 db.doseLogDao().insert(doseLog)
+                db.doseDao().markAsTaken(doseId, Date().time)
+                db.medicineStockDao().decrementStock(stockId, quantity)
 
-                // Update medicine stock
-                db.medicineStockDao().decrementStock(medicineId, quantity)
-
-                Log.d(TAG, "✅ Dose marked as taken and logged")
-                Log.d(TAG, "   Stock before: $currentStock")
-                Log.d(TAG, "   Stock after: ${currentStock - quantity}")
+                Log.d(TAG, "✅ Logged: $currentStock → ${currentStock - quantity}")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error logging dose: ${e.message}", e)
             }
@@ -159,20 +196,19 @@ class ReminderDoseReceiver : BroadcastReceiver() {
     private fun handleAddStock(context: Context, intent: Intent) {
         val patientId = intent.getLongExtra(EXTRA_PATIENT_ID, -1)
         val stockId = intent.getLongExtra(EXTRA_STOCK_ID, -1)
-        val doseId = intent.getIntExtra(EXTRA_DOSE_ID, -1)
+        val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
 
-        Log.d(TAG, "➕ Add stock clicked for patient: $patientId, stock: $stockId")
+        Log.d(TAG, "➕ Add stock: patient $patientId, stock $stockId")
 
-        // Dismiss the notification using unique notification ID
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        stopAlarmSound()
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(generateNotificationId(doseId))
 
-        // Open PatientDetailActivity with medicine stock tab
         val activityIntent = Intent(context, PatientDetailActivity::class.java).apply {
             putExtra("patient_id", patientId)
-            putExtra("open_tab", 1) // 1 for Medicine Stock tab
-            putExtra("stock_id", stockId) // To highlight the specific medicine
+            putExtra("open_tab", 1)
+            putExtra("stock_id", stockId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         context.startActivity(activityIntent)
@@ -180,7 +216,7 @@ class ReminderDoseReceiver : BroadcastReceiver() {
 
     private fun showNotification(
         context: Context,
-        doseId: Int,
+        doseId: Long,
         medicineName: String,
         patientName: String,
         doseTime: String,
@@ -193,45 +229,73 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         createNotificationChannel(context)
 
         val hasEnoughStock = currentStock >= quantity
-
-        // Generate unique notification ID
         val notificationId = generateNotificationId(doseId)
 
-        Log.d(TAG, "📱 Showing notification:")
-        Log.d(TAG, "   Notification ID: $notificationId")
-        Log.d(TAG, "   Has enough stock: $hasEnoughStock")
+        Log.d(TAG, "📱 Notification: ID=$notificationId, Stock=$currentStock/$quantity")
+
+        val openAppIntent = Intent(context, PatientDetailActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("patient_id", patientId)
+            putExtra(EXTRA_DOSE_ID, doseId)
+        }
+
+        val openAppPendingIntent = PendingIntent.getActivity(
+            context,
+            doseId.toInt(),
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val stopAlarmIntent = Intent(context, ReminderDoseReceiver::class.java).apply {
+            action = ACTION_STOP_ALARM
+            putExtra(EXTRA_DOSE_ID, doseId)
+        }
+
+        val stopAlarmPendingIntent = PendingIntent.getBroadcast(
+            context,
+            (doseId * 3000).toInt(),
+            stopAlarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.logo)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(true)
-            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setContentIntent(openAppPendingIntent)
+            .setDeleteIntent(stopAlarmPendingIntent)
             .setVibrate(longArrayOf(0, 500, 200, 500))
+            .addAction(
+                R.drawable.ic_check,
+                "Stop Alarm",
+                stopAlarmPendingIntent
+            )
 
         if (hasEnoughStock) {
-            // Sufficient stock - show "Mark as Taken" button
             val markTakenIntent = Intent(context, ReminderDoseReceiver::class.java).apply {
                 action = ACTION_MARK_TAKEN
                 putExtra(EXTRA_DOSE_ID, doseId)
                 putExtra(EXTRA_PATIENT_ID, patientId)
                 putExtra(EXTRA_MEDICINE_ID, medicineId)
+                putExtra(EXTRA_STOCK_ID, stockId)
                 putExtra(EXTRA_QUANTITY, quantity)
             }
 
             val markTakenPendingIntent = PendingIntent.getBroadcast(
                 context,
-                doseId * 1000, // Different request code for action
+                (doseId * 1000).toInt(),
                 markTakenIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
             notificationBuilder
                 .setContentTitle("💊 Time to take medicine!")
-                .setContentText("Hey!! $patientName,Please take your $quantity x $medicineName tablet at $doseTime")
+                .setContentText("$patientName, take $quantity x $medicineName at $doseTime")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("$patientName needs to take $quantity x $medicineName at $doseTime\n\nStock available: $currentStock")
+                        .bigText("Hey $patientName! Please take $quantity x $medicineName at $doseTime\n\nStock: $currentStock available\n\nTap to open app")
                 )
                 .addAction(
                     R.drawable.ic_check,
@@ -239,7 +303,6 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                     markTakenPendingIntent
                 )
         } else {
-            // Insufficient stock - show "Add Stock" button
             val addStockIntent = Intent(context, ReminderDoseReceiver::class.java).apply {
                 action = ACTION_ADD_STOCK
                 putExtra(EXTRA_DOSE_ID, doseId)
@@ -250,7 +313,7 @@ class ReminderDoseReceiver : BroadcastReceiver() {
 
             val addStockPendingIntent = PendingIntent.getBroadcast(
                 context,
-                doseId * 2000, // Different request code
+                (doseId * 2000).toInt(),
                 addStockIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -260,7 +323,7 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 .setContentText("$patientName: Need $quantity x $medicineName but only $currentStock available")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("$patientName needs to take $quantity x $medicineName at $doseTime\n\n⚠️ Only $currentStock in stock. Need ${quantity - currentStock} more!\n\nPlease add stock to take this dose.")
+                        .bigText("$patientName needs $quantity x $medicineName at $doseTime\n\n⚠️ Only $currentStock in stock. Need ${quantity - currentStock} more!\n\nTap to open app or add stock")
                 )
                 .addAction(
                     R.drawable.ic_add,
@@ -269,11 +332,8 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 )
         }
 
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, notificationBuilder.build())
-
-        Log.d(TAG, "✅ Notification shown for dose ID: $doseId (Notification ID: $notificationId, Stock: $currentStock/$quantity)")
     }
 
     private fun createNotificationChannel(context: Context) {
@@ -286,21 +346,15 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 description = "Notifications for medicine dose reminders"
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 500, 200, 500)
+                setSound(null, null)
             }
 
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
 
-    /**
-     * Generate a unique notification ID for each dose
-     * This ensures multiple dose notifications can be shown simultaneously
-     */
-    private fun generateNotificationId(doseId: Int): Int {
-        // Use dose ID + timestamp to ensure uniqueness
-        // This allows multiple notifications from the same dose (e.g., daily reminders)
-        return (doseId * 10000) + (System.currentTimeMillis() % 10000).toInt()
+    private fun generateNotificationId(doseId: Long): Int {
+        return (doseId * 100).toInt() + (System.currentTimeMillis() % 10000).toInt()
     }
 }

@@ -20,7 +20,7 @@ import com.example.caredose.database.entities.*
         DoseLog::class,
         Vital::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

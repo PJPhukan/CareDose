@@ -8,6 +8,7 @@ import com.example.caredose.repository.DoseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class DoseViewModel(
     private val repository: DoseRepository
@@ -23,10 +24,10 @@ class DoseViewModel(
         _patientId.value = patientId
     }
 
-    fun addDose(dose: Dose) {
-        viewModelScope.launch {
-            repository.insert(dose)
-        }
+    fun addDose(dose: Dose):Long {
+       return runBlocking {
+           repository.insert(dose)
+       }
     }
 
     fun addMultipleDoses(doses: List<Dose>) {

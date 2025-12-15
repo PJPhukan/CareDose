@@ -60,7 +60,7 @@ class MedicineStockAdapter(
                     // Buttons
                     btnEdit.setOnClickListener { onEditClick(stock) }
                     btnDelete.setOnClickListener { onDeleteClick(stock) }
-                    btnStockMedicine.setOnClickListener { onEditClick(stock) }
+                    btnStockMedicine.setOnClickListener { onIncrementStock(stock) }
 
                     // Card click
                     root.setOnClickListener { onEditClick(stock) }

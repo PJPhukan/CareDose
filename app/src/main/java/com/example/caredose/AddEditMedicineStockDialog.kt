@@ -43,10 +43,10 @@ class AddEditMedicineStockDialog : DialogFragment() {
         private const val ARG_PATIENT_ID = "patient_id"
         private const val ARG_STOCK = "existing_stock"
 
-        fun newInstance(patientId: Long, stock: MedicineStock? = null): AddEditMedicineStockDialog {
+        fun newInstance(userId: Long, stock: MedicineStock? = null): AddEditMedicineStockDialog {
             return AddEditMedicineStockDialog().apply {
                 arguments = Bundle().apply {
-                    putLong(ARG_PATIENT_ID, patientId)
+                    putLong(ARG_PATIENT_ID, userId)
                     stock?.let {
                         putParcelable(ARG_STOCK, it)
                     }
@@ -332,7 +332,7 @@ class AddEditMedicineStockDialog : DialogFragment() {
                 duration = duration,
                 isReminderEnabled = reminderEnabled
             ) ?: MedicineStock(
-                patientId = patientId,
+                userId = userId!!,
                 masterMedicineId = masterMedicineId,
                 stockQty = stockQty,
                 reminderStockThreshold = threshold,
