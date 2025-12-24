@@ -1,316 +1,328 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/nestedScrollView"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:padding="8dp"
-    android:layout_marginBottom="80dp">
+    android:layout_height="match_parent">
 
-    <LinearLayout
-        android:id="@+id/rootLinear"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:padding="8dp">
 
-        <!-- Patient Selection -->
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
+            android:id="@+id/rootLinear"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:orientation="vertical">
 
-            <LinearLayout
+          <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_marginBottom="8dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Select Patient"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
-
-                    <AutoCompleteTextView
-                        android:id="@+id/actvPatient"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Choose patient"
-                        android:inputType="none" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Vital Type Selection -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardVitalSelection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Select Vital Type"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp">
-
-                    <AutoCompleteTextView
-                        android:id="@+id/actvVitalType"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Choose vital type"
-                        android:inputType="none" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Date Range Filter -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardDateRange"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Date Range"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipGroupDateRange"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    app:singleSelection="true">
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chip7Days"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="7 Days" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chip30Days"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="30 Days" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chip90Days"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="90 Days" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipAllTime"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="All Time" />
-
-                </com.google.android.material.chip.ChipGroup>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Graph Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardGraph"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- Stats Row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:gravity="center"
-                    android:orientation="horizontal">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center"
-                        android:orientation="vertical">
+                        android:text="Select Patient"
+                        android:textColor="@android:color/darker_gray"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Min"
-                            android:textColor="@android:color/darker_gray"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/tvMinValue"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="?attr/colorPrimary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center"
-                        android:orientation="vertical">
+                        android:layout_marginTop="8dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <AutoCompleteTextView
+                            android:id="@+id/actvPatient"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Avg"
-                            android:textColor="@android:color/darker_gray"
-                            android:textSize="12sp" />
+                            android:hint="Choose patient"
+                            android:inputType="none" />
 
-                        <TextView
-                            android:id="@+id/tvAvgValue"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="?attr/colorPrimary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Max"
-                            android:textColor="@android:color/darker_gray"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/tvMaxValue"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textColor="?attr/colorPrimary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
+                    </com.google.android.material.textfield.TextInputLayout>
 
                 </LinearLayout>
 
-                <!-- Line Chart: fixed height so the scroll can work -->
-                <com.github.mikephil.charting.charts.LineChart
-                    android:id="@+id/lineChart"
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardVitalSelection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="260dp" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Select Vital Type"
+                        android:textColor="@android:color/darker_gray"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actvVitalType"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Choose vital type"
+                            android:inputType="none" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+           <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDateRange"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Date Range"
+                        android:textColor="@android:color/darker_gray"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupDateRange"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip7Days"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="7 Days" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip30Days"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="30 Days" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chip90Days"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="90 Days" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipAllTime"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="All Time" />
+
+                    </com.google.android.material.chip.ChipGroup>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+          <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGraph"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Min"
+                                android:textColor="@android:color/darker_gray"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvMinValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Avg"
+                                android:textColor="@android:color/darker_gray"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvAvgValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Max"
+                                android:textColor="@android:color/darker_gray"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvMaxValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                  <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/lineChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="260dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+          <LinearLayout
+                android:id="@+id/emptyState"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingTop="24dp"
+                android:paddingBottom="24dp"
+                android:visibility="visible">
+
+                <ImageView
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:alpha="0.3"
+                    android:src="@android:drawable/ic_menu_report_image" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Select a patient to view analytics"
+                    android:textAlignment="center"
+                    android:textColor="@android:color/darker_gray"
+                    android:textSize="16sp" />
 
             </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Empty State -->
-        <LinearLayout
-            android:id="@+id/emptyState"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingTop="24dp"
-            android:paddingBottom="24dp"
-            android:visibility="visible">
-
-            <ImageView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:alpha="0.3"
-                android:src="@android:drawable/ic_menu_report_image" />
-
-            <TextView
+           <ProgressBar
+                android:id="@+id/progressBar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center"
                 android:layout_marginTop="16dp"
-                android:text="Select a patient to view analytics"
-                android:textAlignment="center"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="16sp" />
+                android:layout_marginBottom="24dp"
+                android:visibility="gone" />
 
         </LinearLayout>
 
-        <!-- Loading State -->
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp"
-            android:visibility="gone" />
+    </androidx.core.widget.NestedScrollView>
 
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fabAddPatient"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="Add Patient"
+        android:text="Add Patient"
+        app:icon="@drawable/ic_add"
+        app:tint="@android:color/white"
+        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -5,8 +5,6 @@ import com.example.caredose.database.entities.MedicineStock
 import kotlinx.coroutines.flow.Flow
 
 class MedicineStockRepository(private val dao: MedicineStockDao) {
-
-    // Changed from patient-based to user-based
     fun getStockByUser(userId: Long): Flow<List<MedicineStock>> {
         return dao.getStockByUser(userId)
     }
@@ -31,7 +29,6 @@ class MedicineStockRepository(private val dao: MedicineStockDao) {
         dao.delete(stock)
     }
 
-    // Fixed: Actually decrement (not increment)
     suspend fun decrementStock(stockId: Long, quantity: Int): Int {
         return dao.decrementStock(stockId, quantity)
     }

@@ -6,12 +6,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import com.example.caredose.database.entities.Dose
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
-private val TAG = "CARE DOSE ALARM DOSE MANAGER"
 
 class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
 
@@ -22,25 +24,36 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
         dose: Dose,
         medicineName: String,
         patientName: String,
-        medicineId:Long
+        medicineId: Long
     ) {
-        // Check if dose reminder is active or not
         if (!dose.isActive) {
-            Log.d(TAG, "scheduleReminderDose: Dose ${dose.doseId} is not active")
-            return
-        }
-        if(dose.isTakenToday){
             return
         }
 
-        // Get times from the dose
+        if (dose.isTakenToday) {
+            return
+        }
+
+        if (dose.isExpired()) {
+            return
+        }
+
+        if (!dose.isValidSchedule()) {
+            return
+        }
+
         val doseHour = dose.timeInMinutes / 60
         val doseMinute = dose.timeInMinutes % 60
         val reminderBefore = dose.reminderMinutesBefore
-
         val alarmTime = calculateAlarmTime(doseHour, doseMinute, reminderBefore)
-        Log.d(TAG, "ALARM TIME : $alarmTime for dose ${dose.doseId}")
 
+        if (dose.endDate != null && alarmTime > dose.endDate) {
+            return
+        }
+        if (dose.endDate != null) {
+            val daysRemaining =
+                TimeUnit.MILLISECONDS.toDays(dose.endDate - System.currentTimeMillis())
+        }
         val intent = Intent(context, ReminderDoseReceiver::class.java).apply {
             action = ReminderDoseReceiver.ACTION_DOSE_REMINDER
             putExtra(ReminderDoseReceiver.EXTRA_DOSE_ID, dose.doseId)
@@ -49,7 +62,6 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
             putExtra(
                 ReminderDoseReceiver.EXTRA_DOSE_TIME,
                 formatTimeWithAmPm(doseHour, doseMinute)
-
             )
             putExtra(ReminderDoseReceiver.EXTRA_QUANTITY, dose.quantity)
             putExtra(ReminderDoseReceiver.EXTRA_PATIENT_ID, dose.patientId)
@@ -70,23 +82,13 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
                 alarmTime,
                 pendingIntent
             )
-            Log.d(TAG, "✅ Successfully scheduled alarm for dose ${dose.doseId}")
-            Log.d(TAG, "   Patient: $patientName")
-            Log.d(TAG, "   Medicine: $medicineName")
-            Log.d(TAG, "   Time: ${String.format("%02d:%02d", doseHour, doseMinute)}")
-            Log.d(TAG, "   Reminder before: $reminderBefore minutes")
         } catch (e: SecurityException) {
-            Log.e(
-                TAG, "❌ Permission denied for dose ${dose.doseId}: ${e.message}", e
-            )
+            Log.e("Alarm", "Permission denied for dose ${dose.doseId}: ${e.message}", e)
+
         } catch (e: Exception) {
-            Log.e(
-                TAG, "❌ Error setting alarm for dose ${dose.doseId}: ${e.message}",
-                e
-            )
+            Log.e("Alarm", "Error setting alarm for dose ${dose.doseId}: ${e.message}", e)
         }
     }
-
 
     override fun cancelScheduleReminder(dose: Dose) {
         val intent = Intent(context, ReminderDoseReceiver::class.java).apply {
@@ -103,12 +105,10 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
         try {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
-            Log.d(TAG, "🚫 Cancelled alarm for dose ${dose.doseId}")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cancelling alarm for dose ${dose.doseId}: ${e.message}", e)
+            Log.e("Cancel", "Error cancelling alarm for dose ${dose.doseId}: ${e.message}", e)
         }
     }
-
 
     override fun cancelReminderByDoseId(doseId: Long) {
         val intent = Intent(context, ReminderDoseReceiver::class.java).apply {
@@ -125,12 +125,13 @@ class CareDoseAlarmDoseManager(private val context: Context) : AlarmSchedular {
         try {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
-            Log.d(TAG, "🚫 Cancelled alarm for dose ID: $doseId")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cancelling alarm for dose ID $doseId: ${e.message}", e)
+            Log.e("Cancel", "Error cancelling alarm for dose ID $doseId: ${e.message}", e)
         }
     }
+
 }
+
 
 private fun calculateAlarmTime(
     doseHour: Int,
@@ -147,13 +148,9 @@ private fun calculateAlarmTime(
 
     if (actualAlarmTime.isBefore(now) || actualAlarmTime.isEqual(now)) {
         actualAlarmTime = actualAlarmTime.plusDays(1)
-        Log.d(TAG, "⏰ Alarm time has passed today. Scheduling for TOMORROW")
-    } else {
-        Log.d(TAG, "⏰ Scheduling for TODAY")
     }
 
     val alarmMillis = actualAlarmTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-    Log.d(TAG, "📅 Alarm scheduled for: $actualAlarmTime")
 
     return alarmMillis
 }
@@ -166,4 +163,16 @@ private fun formatTimeWithAmPm(hour: Int, minute: Int): String {
         else -> hour
     }
     return String.format("%02d:%02d %s", displayHour, minute, period)
+}
+private fun formatTimestamp(timestampMillis: Long): String {
+    val instant = Instant.ofEpochMilli(timestampMillis)
+    val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+    return dateTime.toString()
+}
+
+private fun formatEndDate(endDate: Long?): String {
+    if (endDate == null) return "CONTINUOUS"
+    val instant = Instant.ofEpochMilli(endDate)
+    val dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+    return dateTime.toString()
 }

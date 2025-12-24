@@ -11,6 +11,7 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.example.caredose.PatientDetailActivity
 import com.example.caredose.R
@@ -41,19 +42,15 @@ class ReminderDoseReceiver : BroadcastReceiver() {
 
         private const val CHANNEL_ID = "dose_reminder_channel"
         private const val CHANNEL_NAME = "Dose Reminders"
-
         private var mediaPlayer: MediaPlayer? = null
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(TAG, "📬 onReceive called with action: ${intent.action}")
-
         when (intent.action) {
             ACTION_DOSE_REMINDER -> handleDoseReminder(context, intent)
             ACTION_MARK_TAKEN -> handleMarkTaken(context, intent)
             ACTION_ADD_STOCK -> handleAddStock(context, intent)
             ACTION_STOP_ALARM -> handleStopAlarm(context, intent)
-            else -> Log.d(TAG, "⚠️ Wrong action received: ${intent.action}")
         }
     }
 
@@ -66,35 +63,30 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         val patientId = intent.getLongExtra(EXTRA_PATIENT_ID, -1)
         val medicineId = intent.getLongExtra(EXTRA_MEDICINE_ID, -1)
 
-        Log.d(TAG, "🔔 Dose Reminder Triggered:")
-        Log.d(TAG, "   Dose ID: $doseId")
-        Log.d(TAG, "   Medicine: $medicineName")
-        Log.d(TAG, "   Patient: $patientName")
-        Log.d(TAG, "   Time: $doseTime")
-        Log.d(TAG, "   Quantity: $quantity")
-
-        playAlarmSound(context)
-
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getDatabase(context)
                 val dose = db.doseDao().getById(doseId)
+
+                if (dose?.isTakenToday == true) {
+                    pendingResult.finish()
+                    return@launch
+                }
+
                 val stockId = dose?.stockId ?: -1L
                 val medicineStock = db.medicineStockDao().getById(stockId)
                 val stockQty = medicineStock?.stockQty ?: 0
 
-                Log.d(TAG, "   Stock ID: $stockId")
-                Log.d(TAG, "   Current Stock: $stockQty")
-
                 withContext(Dispatchers.Main) {
+                    playAlarmSound(context)
                     showNotification(
                         context, doseId, medicineName, patientName, doseTime,
                         quantity, patientId, medicineId, stockQty, stockId
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error checking stock: ${e.message}", e)
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 pendingResult.finish()
             }
@@ -104,7 +96,6 @@ class ReminderDoseReceiver : BroadcastReceiver() {
     private fun playAlarmSound(context: Context) {
         try {
             stopAlarmSound()
-
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             mediaPlayer = MediaPlayer.create(context, alarmUri)
 
@@ -117,15 +108,13 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 )
                 isLooping = true
                 start()
-                Log.d(TAG, "🔊 Alarm sound started")
             }
 
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 stopAlarmSound()
-                Log.d(TAG, "⏱️ Alarm auto-stopped after 1 minute")
             }, 60000)
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error playing alarm: ${e.message}", e)
+            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -136,34 +125,27 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 release()
             }
             mediaPlayer = null
-            Log.d(TAG, "🔇 Alarm stopped")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error stopping alarm: ${e.message}", e)
+            Log.e(TAG, "Error stopping alarm: ${e.message}", e)
         }
     }
 
     private fun handleStopAlarm(context: Context, intent: Intent) {
         val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
-        Log.d(TAG, "⏹️ Stop alarm for dose: $doseId")
-
         stopAlarmSound()
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(generateNotificationId(doseId))
+        Toast.makeText(context, "Alarm stopped", Toast.LENGTH_SHORT).show()
     }
 
     private fun handleMarkTaken(context: Context, intent: Intent) {
         val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
         val quantity = intent.getIntExtra(EXTRA_QUANTITY, 1)
         val stockId = intent.getLongExtra(EXTRA_STOCK_ID, -1)
-
-        Log.d(TAG, "✅ Mark as taken: dose $doseId, stock $stockId")
+        val patientId = intent.getLongExtra(EXTRA_PATIENT_ID, -1)
 
         stopAlarmSound()
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(generateNotificationId(doseId))
-
+        val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val db = AppDatabase.getDatabase(context)
@@ -172,6 +154,10 @@ class ReminderDoseReceiver : BroadcastReceiver() {
 
                 if (currentStock < quantity) {
                     Log.w(TAG, "⚠️ Insufficient stock")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "⚠️ Insufficient stock!", Toast.LENGTH_LONG).show()
+                    }
+                    pendingResult.finish()
                     return@launch
                 }
 
@@ -186,9 +172,34 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 db.doseDao().markAsTaken(doseId, Date().time)
                 db.medicineStockDao().decrementStock(stockId, quantity)
 
-                Log.d(TAG, "✅ Logged: $currentStock → ${currentStock - quantity}")
+                withContext(Dispatchers.Main) {
+                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.cancel(generateNotificationId(doseId))
+
+                    Toast.makeText(context, "Marked as taken!", Toast.LENGTH_SHORT).show()
+
+                    val openAppIntent = Intent(context, PatientDetailActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("patient_id", patientId)
+                        putExtra("open_tab", 0)
+                        putExtra(EXTRA_DOSE_ID, doseId)
+                        putExtra("from_notification", true)
+                    }
+
+                    try {
+                        context.startActivity(openAppIntent)
+                   } catch (e: Exception) {
+                        Log.e(TAG, "Error opening app: ${e.message}", e)
+                    }
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error logging dose: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                pendingResult.finish()
             }
         }
     }
@@ -197,8 +208,6 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         val patientId = intent.getLongExtra(EXTRA_PATIENT_ID, -1)
         val stockId = intent.getLongExtra(EXTRA_STOCK_ID, -1)
         val doseId = intent.getLongExtra(EXTRA_DOSE_ID, -1)
-
-        Log.d(TAG, "➕ Add stock: patient $patientId, stock $stockId")
 
         stopAlarmSound()
 
@@ -209,7 +218,9 @@ class ReminderDoseReceiver : BroadcastReceiver() {
             putExtra("patient_id", patientId)
             putExtra("open_tab", 1)
             putExtra("stock_id", stockId)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         context.startActivity(activityIntent)
     }
@@ -231,11 +242,12 @@ class ReminderDoseReceiver : BroadcastReceiver() {
         val hasEnoughStock = currentStock >= quantity
         val notificationId = generateNotificationId(doseId)
 
-        Log.d(TAG, "📱 Notification: ID=$notificationId, Stock=$currentStock/$quantity")
-
         val openAppIntent = Intent(context, PatientDetailActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("patient_id", patientId)
+            putExtra("open_tab", 0)
             putExtra(EXTRA_DOSE_ID, doseId)
         }
 
@@ -263,13 +275,12 @@ class ReminderDoseReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(false)
-            .setOngoing(true)
+            .setOngoing(false)
             .setContentIntent(openAppPendingIntent)
-            .setDeleteIntent(stopAlarmPendingIntent)
             .setVibrate(longArrayOf(0, 500, 200, 500))
             .addAction(
                 R.drawable.ic_check,
-                "Stop Alarm",
+                "Snooze",
                 stopAlarmPendingIntent
             )
 
@@ -295,11 +306,11 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 .setContentText("$patientName, take $quantity x $medicineName at $doseTime")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("Hey $patientName! Please take $quantity x $medicineName at $doseTime\n\nStock: $currentStock available\n\nTap to open app")
+                        .bigText("Hey $patientName! Please take $quantity x $medicineName at $doseTime\nStock: $currentStock available")
                 )
                 .addAction(
                     R.drawable.ic_check,
-                    "Mark as Taken",
+                    "Taken",
                     markTakenPendingIntent
                 )
         } else {
@@ -323,7 +334,7 @@ class ReminderDoseReceiver : BroadcastReceiver() {
                 .setContentText("$patientName: Need $quantity x $medicineName but only $currentStock available")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("$patientName needs $quantity x $medicineName at $doseTime\n\n⚠️ Only $currentStock in stock. Need ${quantity - currentStock} more!\n\nTap to open app or add stock")
+                        .bigText("$patientName needs $quantity x $medicineName at $doseTime\n⚠️ Only $currentStock in stock. Need ${quantity - currentStock} more!\n\nTap to open app or add stock")
                 )
                 .addAction(
                     R.drawable.ic_add,
@@ -355,6 +366,6 @@ class ReminderDoseReceiver : BroadcastReceiver() {
     }
 
     private fun generateNotificationId(doseId: Long): Int {
-        return (doseId * 100).toInt() + (System.currentTimeMillis() % 10000).toInt()
+        return doseId.toInt() + 1000
     }
 }

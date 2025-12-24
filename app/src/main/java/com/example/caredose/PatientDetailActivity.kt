@@ -1,6 +1,8 @@
 package com.example.caredose
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -10,12 +12,14 @@ import com.example.caredose.repository.*
 import com.example.caredose.ui.patient.PatientDetailPagerAdapter
 import com.example.caredose.viewmodels.*
 import com.google.android.material.tabs.TabLayoutMediator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PatientDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPatientDetailBinding
-    private var patientId: Long = 0
+    private var patientId: Long = -1L
     private var userId: Long = 0
     private var patientName: String = ""
 
@@ -28,42 +32,64 @@ class PatientDetailActivity : AppCompatActivity() {
         binding = ActivityPatientDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Get patient from intent
-        patientId = intent.getLongExtra("PATIENT_ID", 0)
-        patientName = intent.getStringExtra("PATIENT_NAME") ?: "Patient"
+        setupToolbar()
 
-        // Check for notification extras
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+       patientId = intent.getLongExtra("patient_id", -1L)
+        if (patientId == -1L) {
+            patientId = intent.getLongExtra("PATIENT_ID", -1L)
+        }
+
+        patientName = intent.getStringExtra("PATIENT_NAME") ?: intent.getStringExtra("patient_name") ?: "Patient"
+
         val openTab = intent.getIntExtra("open_tab", 0)
         val stockId = intent.getLongExtra("stock_id", -1)
 
-        setupToolbar()
 
-        // Get userId from patientId, then setup ViewModels and ViewPager
-        lifecycleScope.launch {
-            fetchUserIdAndSetup(openTab, stockId)
+        if (patientId != -1L) {
+            supportActionBar?.title = patientName
+
+            lifecycleScope.launch {
+                fetchUserIdAndSetup(openTab, stockId)
+            }
+        } else {
+            Log.e("PatientDetailActivity", "Error: Patient ID is missing or invalid")
         }
     }
 
     private suspend fun fetchUserIdAndSetup(openTab: Int, stockId: Long) {
-        val db = AppDatabase.getDatabase(this)
-        val patient = db.patientDao().getById(patientId)
-        userId = patient?.userId ?: 0
+        withContext(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(this@PatientDetailActivity)
+            val patient = db.patientDao().getById(patientId)
 
-        // Setup on main thread
-        runOnUiThread {
-            setupViewModels()
-            setupViewPager()
+            userId = patient?.userId ?: 0
+            if (patientName == "Patient" && patient != null) {
+                patientName = patient.name
+            }
 
-            // Open specific tab if requested (from notification)
-            if (openTab > 0) {
-                binding.viewPager.setCurrentItem(openTab, false)
+            withContext(Dispatchers.Main) {
+                supportActionBar?.title = patientName
+                setupViewModels()
+                setupViewPager()
 
-                // If stock_id is provided, store it for highlighting
-                if (stockId != -1L) {
-                    getSharedPreferences("notification_prefs", MODE_PRIVATE)
-                        .edit()
-                        .putLong("highlight_stock_id", stockId)
-                        .apply()
+               if (openTab > 0) {
+                    binding.viewPager.setCurrentItem(openTab, false)
+
+                 if (stockId != -1L) {
+                        getSharedPreferences("notification_prefs", MODE_PRIVATE)
+                            .edit()
+                            .putLong("highlight_stock_id", stockId)
+                            .apply()
+                    }
                 }
             }
         }
@@ -75,7 +101,6 @@ class PatientDetailActivity : AppCompatActivity() {
             title = patientName
             setDisplayHomeAsUpEnabled(true)
         }
-
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
@@ -88,19 +113,16 @@ class PatientDetailActivity : AppCompatActivity() {
             vitalRepository = VitalRepository(db.vitalDao())
         )
 
-        medicineStockViewModel =
-            ViewModelProvider(this, factory)[MedicineStockViewModel::class.java]
+        medicineStockViewModel = ViewModelProvider(this, factory)[MedicineStockViewModel::class.java]
         doseViewModel = ViewModelProvider(this, factory)[DoseViewModel::class.java]
         vitalViewModel = ViewModelProvider(this, factory)[VitalViewModel::class.java]
-
 
         medicineStockViewModel.setUserId(userId)
         doseViewModel.setPatientId(patientId)
         vitalViewModel.setPatientId(patientId)
     }
 
-    private fun setupViewPager() {
-        val adapter = PatientDetailPagerAdapter(this, patientId)
+    private fun setupViewPager() {val adapter = PatientDetailPagerAdapter(this, patientId)
         binding.viewPager.adapter = adapter
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->

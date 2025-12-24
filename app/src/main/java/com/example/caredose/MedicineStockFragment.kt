@@ -47,16 +47,13 @@ class MedicineStockFragment : Fragment() {
         super.onCreate(savedInstanceState)
         patientId = arguments?.getLong(ARG_PATIENT_ID) ?: 0
 
-        // Get userId from patientId
         lifecycleScope.launch {
             val db = AppDatabase.getDatabase(requireContext())
             val patient = db.patientDao().getById(patientId)
             userId = patient?.userId ?: 0
 
-            // Setup ViewModel after getting userId
             setupViewModel()
 
-            // Now that ViewModel is initialized, observe data
             if (_binding != null) {
                 observeData()
             }
@@ -78,7 +75,6 @@ class MedicineStockFragment : Fragment() {
         setupRecyclerView()
         setupFab()
 
-        // Only observe data if viewModel is already initialized
         if (isViewModelInitialized) {
             observeData()
         }
@@ -147,15 +143,13 @@ class MedicineStockFragment : Fragment() {
                 binding.rvMedicineStock.visibility = View.VISIBLE
                 binding.tvEmptyState.visibility = View.GONE
 
-                // Scroll to highlighted item if needed
                 scrollToHighlightedItem(stocks)
             }
         }
     }
 
     private fun checkForHighlightRequest() {
-        // Check if we need to highlight a specific medicine from notification
-        val prefs = requireActivity().getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
+       val prefs = requireActivity().getSharedPreferences("notification_prefs", android.content.Context.MODE_PRIVATE)
         val highlightStockId = prefs.getLong("highlight_stock_id", -1)
 
         if (highlightStockId != -1L) {
@@ -180,8 +174,7 @@ class MedicineStockFragment : Fragment() {
             if (position != -1) {
                 binding.rvMedicineStock.scrollToPosition(position)
 
-                // Optionally, open the edit dialog automatically
-                binding.rvMedicineStock.postDelayed({
+            binding.rvMedicineStock.postDelayed({
                     showAddEditDialog(stocks[position])
                 }, 300)
             }

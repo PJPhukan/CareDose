@@ -11,14 +11,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class HomeViewModel(private val repository: PatientRepository? = null) : ViewModel() {
-    //------PATIENT----
+
     private val _patients = MutableStateFlow<States<List<Patient>>>(States.Idle)
     val patients: StateFlow<States<List<Patient>>> = _patients.asStateFlow()
 
     private val _patientOperation = MutableStateFlow<States<Long>>(States.Idle)
     val patientOperation: StateFlow<States<Long>> = _patientOperation.asStateFlow()
 
-    //LOAD ALL USERS
+    //get ALL USERS
     fun loadPatients(userId: Long) {
         viewModelScope.launch {
             _patients.value = States.Loading

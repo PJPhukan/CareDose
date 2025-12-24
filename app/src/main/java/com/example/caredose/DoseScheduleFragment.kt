@@ -28,7 +28,6 @@ class DoseScheduleFragment : Fragment() {
     private lateinit var adapter: DoseAdapter
     private var patientId: Long = 0
 
-
     companion object {
         private const val ARG_PATIENT_ID = "patient_id"
 
@@ -62,6 +61,11 @@ class DoseScheduleFragment : Fragment() {
         setupRecyclerView()
         setupFab()
         observeData()
+
+        // PHASE 6: Auto-cleanup expired doses when fragment opens
+        lifecycleScope.launch {
+            cleanupExpiredDoses()
+        }
     }
 
     private fun setupViewModel() {
@@ -100,6 +104,8 @@ class DoseScheduleFragment : Fragment() {
     }
 
     private fun observeData() {
+        // PHASE 6: Use regular doses observable (includes all doses)
+        // You can optionally switch to getValidDosesByPatient() to hide expired ones
         viewModel.doses.observe(viewLifecycleOwner) { doses ->
             adapter.submitList(doses)
 
@@ -119,15 +125,12 @@ class DoseScheduleFragment : Fragment() {
         dialog.setOnSaveListener { dose, callback ->
             lifecycleScope.launch {
                 val savedDoseId = if (existingDose == null) {
-                    // Add new dose and get the ID
                     viewModel.addDose(dose)
                 } else {
-                    // Update existing dose
                     viewModel.updateDose(dose)
-                    dose.doseId // Return existing ID for updates
+                    dose.doseId
                 }
 
-                // Call the callback with the saved dose ID
                 callback(savedDoseId as Long)
             }
         }
@@ -147,10 +150,27 @@ class DoseScheduleFragment : Fragment() {
             .show()
     }
 
+    /**
+     * PHASE 6: NEW METHOD
+     * Cleanup expired doses and cancel their alarms
+     */
+    private suspend fun cleanupExpiredDoses() {
+        val db = AppDatabase.getDatabase(requireContext())
+        val expiredDoses = db.doseDao().getExpiredActiveDoses(System.currentTimeMillis())
+
+        if (expiredDoses.isNotEmpty()) {
+            // Deactivate expired doses
+            db.doseDao().deactivateExpiredDoses(System.currentTimeMillis())
+
+            // Cancel alarms
+            expiredDoses.forEach { dose ->
+                scheduler.cancelScheduleReminder(dose)
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
-
-
 }

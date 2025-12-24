@@ -27,11 +27,9 @@ interface MasterVitalDao {
     @Query("SELECT * FROM master_vitals WHERE vitalId = :id")
     suspend fun getById(id: Long): MasterVital?
 
-    // ADDED: Get vital by ID (for repository)
     @Query("SELECT * FROM master_vitals WHERE vitalId = :vitalId")
     suspend fun getVitalById(vitalId: Long): MasterVital?
 
-    // ADDED: Get vitals by user ID
     @Query("SELECT * FROM master_vitals WHERE userId = :userId ORDER BY name ASC")
     fun getVitalsByUser(userId: Long): Flow<List<MasterVital>>
 

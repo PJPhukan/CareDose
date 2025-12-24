@@ -18,13 +18,10 @@ class PatientViewModel(
     private val _patientsState = MutableStateFlow<States<List<Patient>>>(States.Idle)
     val patientsState: StateFlow<States<List<Patient>>> = _patientsState
 
-    // StateFlow for add/update/delete operations
     private val _operationState = MutableStateFlow<States<Unit>>(States.Idle)
     val operationState: StateFlow<States<Unit>> = _operationState
 
-    /**
-     * Load all patients for a specific user
-     */
+
     fun loadPatients(userId: Long) {
         viewModelScope.launch {
             _patientsState.value = States.Loading
@@ -38,9 +35,6 @@ class PatientViewModel(
         }
     }
 
-    /**
-     * Add a new patient
-     */
     fun addPatient(patient: Patient) {
         viewModelScope.launch {
             _operationState.value = States.Loading
@@ -53,9 +47,6 @@ class PatientViewModel(
         }
     }
 
-    /**
-     * Update existing patient
-     */
     fun updatePatient(patient: Patient) {
         viewModelScope.launch {
             _operationState.value = States.Loading
@@ -68,9 +59,6 @@ class PatientViewModel(
         }
     }
 
-    /**
-     * Delete patient
-     */
     fun deletePatient(patient: Patient) {
         viewModelScope.launch {
             _operationState.value = States.Loading
@@ -83,9 +71,7 @@ class PatientViewModel(
         }
     }
 
-    /**
-     * Reset operation state (useful after showing success message)
-     */
+
     fun resetOperationState() {
         _operationState.value = States.Idle
     }

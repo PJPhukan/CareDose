@@ -37,9 +37,8 @@ class StockReminderReceiver : BroadcastReceiver() {
             return
         }
 
-            val pendingResult = goAsync()
-
-        CoroutineScope(Dispatchers.IO).launch {
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.Main).launch {
             try {
                 checkAndNotifyLowStock(context)
 
@@ -50,7 +49,7 @@ class StockReminderReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
-                    "Unable to cheking stock",
+                    "Unable to checking stock",
                     Toast.LENGTH_SHORT
                 ).show()
             } finally {
@@ -74,13 +73,10 @@ class StockReminderReceiver : BroadcastReceiver() {
             return
         }
 
-
-        // Get all low stock medicines for this user
         val lowStockMedicines = db.medicineStockDao().getLowStockForUser(userId)
 
 
         if (lowStockMedicines.isNotEmpty()) {
-            // Get medicine names
             val medicineDetails = mutableListOf<Pair<String, MedicineStock>>()
             lowStockMedicines.forEach { stock ->
                 val medicine = db.masterMedicineDao().getById(stock.masterMedicineId)
@@ -108,7 +104,7 @@ class StockReminderReceiver : BroadcastReceiver() {
             "⚠️ $count Medicines Low on Stock"
         }
 
-        // Build the notification content
+
         val contentText = if (count == 1) {
             val (name, stock) = medicineDetails[0]
             "$name: Only ${stock.stockQty} left (threshold: ${stock.reminderStockThreshold})"
@@ -116,13 +112,12 @@ class StockReminderReceiver : BroadcastReceiver() {
             "${medicineDetails[0].first} and ${count - 1} other medicine${if (count > 2) "s" else ""}"
         }
 
-        // Build detailed message for big text style
         val bigText = buildString {
             append("The following medicines are running low:\n\n")
             medicineDetails.forEachIndexed { index, (name, stock) ->
                 append("${index + 1}. $name: ${stock.stockQty} left")
                 if (stock.stockQty == 0) {
-                    append(" ❌ OUT OF STOCK")
+                    append(" OUT OF STOCK")
                 } else {
                     append(" (threshold: ${stock.reminderStockThreshold})")
                 }
@@ -130,10 +125,9 @@ class StockReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        // Create intent to open app
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("open_stock_screen", true) // You can use this to navigate to stock screen
+            putExtra("open_stock_screen", true)
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -154,7 +148,8 @@ class StockReminderReceiver : BroadcastReceiver() {
             .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
             .setVibrate(longArrayOf(0, 500, 200, 500))
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
 
     }
@@ -171,7 +166,8 @@ class StockReminderReceiver : BroadcastReceiver() {
                 vibrationPattern = longArrayOf(0, 500, 200, 500)
             }
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }

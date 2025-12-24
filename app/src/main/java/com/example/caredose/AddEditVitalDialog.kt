@@ -38,6 +38,8 @@ class AddEditVitalDialog : DialogFragment() {
     private lateinit var sessionManager: SessionManager
     private var masterVitals = listOf<MasterVital>()
     private var selectedTimestamp: Long = System.currentTimeMillis()
+    private var isItemSelected = false
+    private var selectedMasterVital: MasterVital? = null
 
     companion object {
         private const val ARG_PATIENT_ID = "patient_id"
@@ -89,7 +91,6 @@ class AddEditVitalDialog : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Set dialog width to 90% of screen width
         dialog?.window?.setLayout(
             (resources.displayMetrics.widthPixels * 0.9).toInt(),
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -116,7 +117,6 @@ class AddEditVitalDialog : DialogFragment() {
             binding.tvTitle.text = "Edit Vital Reading"
             selectedTimestamp = vital.recordedAt
 
-            // Will set vital name after vitals are loaded
             binding.etValue.setText(vital.value.toString())
             binding.etNote.setText(vital.note ?: "")
             binding.btnSelectDate.text = formatDate(vital.recordedAt)
@@ -140,21 +140,26 @@ class AddEditVitalDialog : DialogFragment() {
     private fun loadMasterVitals() {
         val userId = sessionManager.getUserId()
         if (userId != -1L) {
-            // Load vitals using LiveData
             masterVitalViewModel.loadVitalsLiveData(userId as Long)
 
-            // Observe the LiveData
             masterVitalViewModel.allVitals.observe(viewLifecycleOwner) { vitals ->
                 masterVitals = vitals
                 setupAutoComplete(vitals)
 
-                // Set vital name after vitals are loaded (for edit mode)
                 existingVital?.let { vital ->
                     val vitalName = vitals.find { it.vitalId == vital.masterVitalId }?.name ?: ""
-                    binding.actvVitalType.setText(vitalName)
+                    val masterVital = vitals.find { it.vitalId == vital.masterVitalId }
 
-                    // Update value hint with unit
-                    val unit = vitals.find { it.vitalId == vital.masterVitalId }?.unit ?: "unit"
+                    binding.actvVitalType.setText(vitalName, false)
+
+                    if (masterVital != null) {
+                        selectedMasterVital = masterVital
+                        binding.etUnit.setText(masterVital.unit)
+                        binding.etUnit.isEnabled = false
+                        binding.tilUnit.visibility = View.VISIBLE
+                    }
+
+                    val unit = masterVital?.unit ?: "unit"
                     binding.etValue.hint = "Value ($unit)"
                 }
             }
@@ -168,18 +173,21 @@ class AddEditVitalDialog : DialogFragment() {
         val vitalDisplayNames = vitals.map { "${it.name} (${it.unit})" }
         binding.actvVitalType.threshold = 1
 
-        // 1. Define the TextWatcher explicitly
         textWatcher = binding.actvVitalType.addTextChangedListener { editable ->
+
+            if (isItemSelected) {
+                isItemSelected = false
+                return@addTextChangedListener
+            }
+
             val input = editable.toString().trim()
             val listForAdapter = mutableListOf<String>()
 
             if (input.isNotEmpty()) {
-                // 1) matching vitals (show with unit)
                 val matchingVitals =
                     vitalDisplayNames.filter { it.contains(input, ignoreCase = true) }
                 listForAdapter.addAll(matchingVitals)
 
-                // 2) matching medicines (plain)
                 val vitalNamesLower =
                     matchingVitals.map { it.substringBefore(" (").trim().lowercase() }.toSet()
                 val matchingMedicines = medicines
@@ -187,82 +195,93 @@ class AddEditVitalDialog : DialogFragment() {
                     .filter { med -> med.trim().lowercase() !in vitalNamesLower }
                 listForAdapter.addAll(matchingMedicines)
 
-                // 3) ALWAYS append Add option when input not empty
                 listForAdapter.add("➕ Add \"$input\" to vital types")
 
             } else {
-                // when input empty: show all vitals (no Add)
                 listForAdapter.addAll(vitalDisplayNames)
             }
 
-            // Adapter setup
+
             val adapter = ArrayAdapter(
                 requireContext(),
                 android.R.layout.simple_dropdown_item_1line,
                 listForAdapter
             )
 
-            // Posting the UI updates to avoid blinking/flickering
             binding.actvVitalType.post {
                 binding.actvVitalType.setAdapter(adapter)
 
-                if (input.isNotEmpty()) {
+                if (input.isNotEmpty() && binding.actvVitalType.hasFocus()) {
                     binding.actvVitalType.showDropDown()
                 }
             }
         }
 
-        // 2. The rest of setupAutoComplete (setOnItemClickListener)
         binding.actvVitalType.setOnItemClickListener { parent, _, position, _ ->
             val selectedItem = parent.getItemAtPosition(position) as String
 
-            // Temporarily remove the TextWatcher
-            binding.actvVitalType.removeTextChangedListener(textWatcher!!)
+            isItemSelected = true
+
+            textWatcher?.let { binding.actvVitalType.removeTextChangedListener(it) }
 
             when {
                 selectedItem.startsWith("➕ Add") -> {
-                    // Extract the clean input
                     val input = selectedItem
                         .substringAfter("➕ Add \"")
                         .substringBefore("\" to vital types")
                         .trim()
 
                     if (input.isNotEmpty()) {
-                        // Set the clean text without triggering the listener
-                        binding.actvVitalType.setText(input)
-                        binding.actvVitalType.setSelection(input.length)
+                        binding.actvVitalType.setText(input, false)
 
-                        // Then call the logic to handle saving/updating master list
-                        addToMasterList(input)
+                        selectedMasterVital = null
+                        binding.tilUnit.visibility = View.VISIBLE
+                        binding.etUnit.isEnabled = true
+                        binding.etUnit.setText("")
+                        binding.etValue.hint = "Value"
+
                     }
                 }
 
                 selectedItem.contains(" (") && selectedItem.endsWith(")") -> {
                     val vitalName = selectedItem.substringBefore(" (").trim()
 
-                    // Set the clean vital name without triggering the listener
-                    binding.actvVitalType.setText(vitalName)
+                    binding.actvVitalType.setText(vitalName, false)
 
                     val selectedVital =
                         masterVitals.find { it.name.equals(vitalName, ignoreCase = true) }
-                    selectedVital?.let { binding.etValue.hint = "Value (${it.unit})" }
+
+                    if (selectedVital != null) {
+                        selectedMasterVital = selectedVital
+                        binding.tilUnit.visibility = View.VISIBLE
+                        binding.etUnit.setText(selectedVital.unit)
+                        binding.etUnit.isEnabled = false
+                        binding.etValue.hint = "Value (${selectedVital.unit})"
+                    }
                 }
 
                 else -> {
-                    // medicine selected
-                    binding.actvVitalType.setText(selectedItem)
+                  binding.actvVitalType.setText(selectedItem, false)
+                    selectedMasterVital = null
+                    binding.tilUnit.visibility = View.VISIBLE
+                    binding.etUnit.isEnabled = true
+                    binding.etUnit.setText("")
                     binding.etValue.hint = "Value (dose / mg / etc.)"
                 }
             }
 
-            // Re-add the TextWatcher
-            binding.actvVitalType.addTextChangedListener(textWatcher!!)
+           binding.actvVitalType.dismissDropDown()
+            binding.actvVitalType.clearFocus()
 
-            // Crucial: Manually hide the dropdown to prevent cursor movement from showing it again
-            binding.actvVitalType.dismissDropDown()
+          if (binding.etUnit.isEnabled) {
+                binding.etUnit.requestFocus()
+            } else {
+                binding.etValue.requestFocus()
+            }
 
-
-            binding.etValue.requestFocus()
+            binding.actvVitalType.postDelayed({
+                textWatcher?.let { binding.actvVitalType.addTextChangedListener(it) }
+            }, 200)
         }
 
         // initial adapter
@@ -293,31 +312,22 @@ class AddEditVitalDialog : DialogFragment() {
         val input = name.trim()
         if (input.isEmpty() || userId == -1L) return
 
-        // Create a new MasterVital object (id=0 until DB returns real id)
-        val newVital = MasterVital(
+       val newVital = MasterVital(
             userId = userId as Long,
             name = input,
             unit = "unit"
         )
 
-        // 1) Update local list immediately to avoid UI flicker
-        //    We'll append a placeholder with vitalId = 0 (or -1) and update after DB returns if needed.
         masterVitals = masterVitals + newVital
+  refreshAutoCompleteAdapter()
 
-        // 2) Immediately update adapter so dropdown can use new data
-        refreshAutoCompleteAdapter()
-
-        // Keep the typed text and caret at end, then re-open dropdown after UI settles
-        binding.actvVitalType.setText(input)
-        binding.actvVitalType.setSelection(input.length)
+       binding.actvVitalType.setText(input, false)
         binding.actvVitalType.post { binding.actvVitalType.showDropDown() }
 
-        // 3) Persist to DB / ViewModel asynchronously and update local entry with real id
-        lifecycleScope.launch {
+     lifecycleScope.launch {
             try {
                 val newId = masterVitalViewModel.addVitalAndGetId(newVital)
-                // Replace the placeholder entry with real id (match by name)
-                masterVitals = masterVitals.map { mv ->
+               masterVitals = masterVitals.map { mv ->
                     if (mv.name.equals(
                             input,
                             ignoreCase = true
@@ -326,14 +336,12 @@ class AddEditVitalDialog : DialogFragment() {
                         mv.copy(vitalId = newId)
                     } else mv
                 }
-                // Refresh adapter again to include correct ids/units (if unit changed)
                 binding.actvVitalType.post {
                     refreshAutoCompleteAdapter()
-                    // keep dropdown visible so the user still sees suggestions
-                    binding.actvVitalType.showDropDown()
+                 binding.actvVitalType.showDropDown()
                 }
             } catch (e: Exception) {
-                // handle error (optional): remove placeholder or notify user
+                // todo:
             }
         }
     }
@@ -375,11 +383,17 @@ class AddEditVitalDialog : DialogFragment() {
         val vitalName = binding.actvVitalType.text.toString().trim()
         val valueStr = binding.etValue.text.toString()
         val note = binding.etNote.text.toString().trim()
+        val unit = binding.etUnit.text.toString().trim()
         val userId = sessionManager.getUserId()
 
         // Validation
         if (vitalName.isEmpty()) {
             binding.actvVitalType.error = "Vital type required"
+            return
+        }
+
+        if (unit.isEmpty()) {
+            binding.etUnit.error = "Unit required"
             return
         }
 
@@ -395,24 +409,29 @@ class AddEditVitalDialog : DialogFragment() {
         }
 
         if (userId == -1L) {
-            // Handle error: user not logged in
             return
         }
 
-        // Find or create master vital
         lifecycleScope.launch {
-            var masterVitalId = masterVitals.find {
-                it.name.equals(vitalName, ignoreCase = true)
-            }?.vitalId
+            var masterVitalId: Long
 
-            if (masterVitalId == null) {
-                // Auto-add to master list
-                val newVital = MasterVital(
-                    userId = userId as Long,
-                    name = vitalName,
-                    unit = "unit" // Default unit
-                )
-                masterVitalId = masterVitalViewModel.addVitalAndGetId(newVital)
+            if (selectedMasterVital != null) {
+                masterVitalId = selectedMasterVital!!.vitalId
+            } else {
+                val existingVital = masterVitals.find {
+                    it.name.equals(vitalName, ignoreCase = true)
+                }
+
+                if (existingVital != null) {
+                    masterVitalId = existingVital.vitalId
+                } else {
+                    val newVital = MasterVital(
+                        userId = userId as Long,
+                        name = vitalName,
+                        unit = unit
+                    )
+                    masterVitalId = masterVitalViewModel.addVitalAndGetId(newVital)
+                }
             }
 
             val vital = existingVital?.copy(
@@ -435,6 +454,9 @@ class AddEditVitalDialog : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        textWatcher?.let {
+            binding.actvVitalType.removeTextChangedListener(it)
+        }
         _binding = null
     }
 }

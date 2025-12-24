@@ -13,15 +13,13 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Header Row with Medicine Info and Action Icons -->
-        <LinearLayout
+      <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-            <!-- Medicine Info -->
-            <LinearLayout
+          <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -58,14 +56,6 @@
                         android:textSize="14sp"
                         android:textColor="?android:textColorSecondary" />
 
-                    <TextView
-                        android:id="@+id/tvDuration"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:text="30 days"
-                        android:textSize="14sp"
-                        android:textColor="?android:textColorSecondary" />
 
                 </LinearLayout>
 
@@ -82,8 +72,7 @@
 
             </LinearLayout>
 
-            <!-- Action Icons -->
-            <ImageButton
+           <ImageButton
                 android:id="@+id/btnEdit"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -104,7 +93,6 @@
 
         </LinearLayout>
 
-        <!-- Stock Medicine Button -->
         <Button
             android:id="@+id/btnStockMedicine"
             style="@style/Widget.MaterialComponents.Button"

@@ -20,8 +20,7 @@
             android:textColor="@android:color/black"
             android:layout_marginBottom="20dp" />
 
-        <!-- Medicine Selection -->
-        <com.google.android.material.textfield.TextInputLayout
+     <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Select Medicine"
@@ -35,8 +34,7 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Dose Time Selection -->
-        <TextView
+       <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -58,8 +56,83 @@
             android:paddingStart="16dp"
             android:paddingEnd="16dp" />
 
-        <!-- Reminder Time Before Dose -->
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Duration"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black" />
+
+        <RadioGroup
+            android:id="@+id/rgDurationType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/rbContinuous"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Continuous (until manually stopped)"
+                android:checked="false" />
+
+            <RadioButton
+                android:id="@+id/rbSpecificDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Specific Duration"
+                android:checked="true" />
+
+        </RadioGroup>
+
+       <LinearLayout
+            android:id="@+id/layoutDurationValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Value"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDurationValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="7" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Spinner
+                android:id="@+id/spinnerDurationType"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:minHeight="56dp" />
+
+        </LinearLayout>
+
+      <TextView
+            android:id="@+id/tvDurationPreview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Schedule will end on: Dec 24, 2025"
+            android:textSize="12sp"
+            android:textColor="?android:textColorSecondary"
+            android:visibility="gone" />
+
+     <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -92,8 +165,7 @@
             android:textSize="12sp"
             android:textColor="?android:textColorSecondary" />
 
-        <!-- Quantity -->
-        <com.google.android.material.textfield.TextInputLayout
+      <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -109,8 +181,7 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Active Switch -->
-        <com.google.android.material.switchmaterial.SwitchMaterial
+     <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchActive"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -118,7 +189,6 @@
             android:text="Active (Enable reminders)"
             android:checked="true" />
 
-        <!-- Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

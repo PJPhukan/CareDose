@@ -12,7 +12,6 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Title -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -23,7 +22,6 @@
             android:gravity="center"
             android:layout_marginBottom="8dp"/>
 
-        <!-- Medicine Icon -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -32,7 +30,6 @@
             android:gravity="center"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Medicine Name -->
         <TextView
             android:id="@+id/tvMedicineName"
             android:layout_width="match_parent"
@@ -44,7 +41,6 @@
             android:gravity="center"
             android:layout_marginBottom="8dp"/>
 
-        <!-- Current Stock -->
         <TextView
             android:id="@+id/tvCurrentStock"
             android:layout_width="match_parent"
@@ -55,7 +51,6 @@
             android:gravity="center"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Divider -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
@@ -63,7 +58,6 @@
             android:alpha="0.2"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Quick Add Label -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -73,7 +67,6 @@
             android:textColor="@color/black"
             android:layout_marginBottom="12dp"/>
 
-        <!-- Quick Add Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -109,18 +102,16 @@
 
         </LinearLayout>
 
-        <!-- Custom Amount Label -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Or enter custom amount"
+            android:text="Stock amount"
             android:textSize="14sp"
             android:textStyle="bold"
             android:textColor="@color/black"
             android:layout_marginBottom="12dp"/>
 
-        <!-- Custom Amount Input - Using standard EditText instead of Material -->
-        <LinearLayout
+       <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -138,7 +129,6 @@
 
         </LinearLayout>
 
-        <!-- Action Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

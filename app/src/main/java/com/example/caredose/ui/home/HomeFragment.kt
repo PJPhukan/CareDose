@@ -45,7 +45,6 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 //        supportActionBar?.hide()
-        // Initialize SessionManager
         sessionManager = SessionManager(requireContext())
 
         // Setup ViewModel with Global Factory
@@ -54,20 +53,14 @@ class HomeFragment : Fragment() {
         val factory = ViewModelFactory(patientRepository = patientRepository)
         homeViewModel = ViewModelProvider(this, factory)[HomeViewModel::class.java]
 
-        // Setup RecyclerView
         setupRecyclerView()
-
-
-        // Setup FAB
         binding.fabAddPatient.setOnClickListener {
             val intent = Intent(requireContext(), AddEditPatient::class.java)
             startActivity(intent)
         }
 
-        // Observe patients
         observePatients()
 
-        // Load patients for current user
         val userId = sessionManager.getUserId()
         if (userId != -1L) {
             homeViewModel.loadPatients(userId as Long)
@@ -93,7 +86,6 @@ class HomeFragment : Fragment() {
                 startActivity(intent)
             },
             onDeleteClick = { patient ->
-                // Delete without confirmation (as requested)
                 homeViewModel.deletePatient(patient)
             }
 
@@ -121,7 +113,6 @@ class HomeFragment : Fragment() {
                     is States.Success -> {
                         binding.progressBar.visibility = View.GONE
 
-                        // 'state.data' is now a List<Patient>
                         val patients: List<Patient> = state.data
 
                         if (patients.isEmpty()) {
@@ -147,7 +138,6 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Reload patients when returning from AddEditPatientActivity
         val userId = sessionManager.getUserId()
         userId?.let { id ->
             if (id != -1L) {

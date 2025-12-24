@@ -34,6 +34,5 @@ data class MedicineStock(
     var stockQty: Int,
     val reminderStockThreshold: Int = 5,
     val isReminderEnabled: Boolean = true,
-    val duration: Int,
     val createdAt: Long = System.currentTimeMillis()
 ) : Parcelable

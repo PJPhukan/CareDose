@@ -20,7 +20,7 @@ import com.example.caredose.database.entities.*
         DoseLog::class,
         Vital::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,8 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "caredose_database"
                 )
-                    .fallbackToDestructiveMigration()  // ← This destroys old data during dev
-                    // For production, add proper migrations
+                    .fallbackToDestructiveMigration()
                     .build()
 
                 INSTANCE = instance

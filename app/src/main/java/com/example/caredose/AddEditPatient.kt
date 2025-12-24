@@ -31,19 +31,15 @@ class AddEditPatient : AppCompatActivity() {
         // Initialize SessionManager
         sessionManager = SessionManager(this)
 
-        // Setup ViewModel with Global Factory
         val database = AppDatabase.getDatabase(this)
         val patientRepository = PatientRepository(database)
         val factory = ViewModelFactory(patientRepository = patientRepository)
         patientViewModel = ViewModelProvider(this, factory)[PatientViewModel::class.java]
 
-        // Setup Gender Spinner
         setupGenderSpinner()
 
-        // Check if Edit Mode
         checkEditMode()
 
-        // Setup Buttons
         binding.btnSave.setOnClickListener {
             savePatient()
         }
@@ -52,7 +48,6 @@ class AddEditPatient : AppCompatActivity() {
             finish()
         }
 
-        // Observe save/update state
         observeOperationState()
     }
 
@@ -67,11 +62,9 @@ class AddEditPatient : AppCompatActivity() {
         patientId = intent.getLongExtra("PATIENT_ID", -1L)
 
         if (patientId != -1L) {
-            // Edit Mode
             isEditMode = true
             binding.tvTitle.text = "Edit Patient"
 
-            // Fill form with patient data
             val name = intent.getStringExtra("PATIENT_NAME") ?: ""
             val age = intent.getIntExtra("PATIENT_AGE", 0)
             val gender = intent.getStringExtra("PATIENT_GENDER") ?: "Male"
@@ -79,7 +72,6 @@ class AddEditPatient : AppCompatActivity() {
             binding.etPatientName.setText(name)
             binding.etPatientAge.setText(age.toString())
 
-            // Set spinner selection
             val genderPosition = when (gender) {
                 "Male" -> 0
                 "Female" -> 1
@@ -88,7 +80,6 @@ class AddEditPatient : AppCompatActivity() {
             }
             binding.spinnerGender.setSelection(genderPosition)
         } else {
-            // Add Mode
             isEditMode = false
             binding.tvTitle.text = "Add Patient"
         }

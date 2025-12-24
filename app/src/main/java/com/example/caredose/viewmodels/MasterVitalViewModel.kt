@@ -1,5 +1,6 @@
 package com.example.caredose.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
@@ -22,14 +23,11 @@ class MasterVitalViewModel(
     private val _addEditState = MutableStateFlow<States<Boolean>>(States.Idle)
     val addEditState: StateFlow<States<Boolean>> = _addEditState
 
-    // LiveData for observing all vitals (used in AddEditVitalDialog)
     private var _allVitals: LiveData<List<MasterVital>>? = null
     val allVitals: LiveData<List<MasterVital>>
         get() = _allVitals ?: throw IllegalStateException("Call loadVitalsLiveData first")
 
-    /**
-     * Load vitals using StateFlow (for UI state management)
-     */
+
     fun loadVitals(userId: Long) {
         viewModelScope.launch {
             _vitalsState.value = States.Loading
@@ -43,29 +41,21 @@ class MasterVitalViewModel(
         }
     }
 
-    /**
-     * Load vitals using LiveData (for dropdown/autocomplete)
-     */
     fun loadVitalsLiveData(userId: Long) {
         _allVitals = repository.getVitalsByUser(userId).asLiveData()
     }
 
-    /**
-     * Add a vital (simple version)
-     */
+
     fun addVital(vital: MasterVital) {
         viewModelScope.launch {
             try {
                 repository.insertVital(vital)
             } catch (e: Exception) {
-                // Handle error silently or log
+                Log.e("Addvitals", "addVital: ${e.message}", )
             }
         }
     }
 
-    /**
-     * Add a vital with userId, name, unit (for UI forms)
-     */
     fun addVital(userId: Long, name: String, unit: String) {
         viewModelScope.launch {
             try {
@@ -83,16 +73,10 @@ class MasterVitalViewModel(
         }
     }
 
-    /**
-     * Add vital and return its ID (for creating Vital records)
-     */
     suspend fun addVitalAndGetId(vital: MasterVital): Long {
         return repository.insertVital(vital)
     }
 
-    /**
-     * Update existing vital
-     */
     fun updateVital(vitalId: Long, userId: Long, name: String, unit: String) {
         viewModelScope.launch {
             try {
@@ -111,22 +95,16 @@ class MasterVitalViewModel(
         }
     }
 
-    /**
-     * Delete vital
-     */
     fun deleteVital(vital: MasterVital) {
         viewModelScope.launch {
             try {
                 repository.deleteVital(vital)
             } catch (e: Exception) {
-                // Handle error
+                // TODO: show toastHandle error
             }
         }
     }
 
-    /**
-     * Reset operation state
-     */
     fun resetAddEditState() {
         _addEditState.value = States.Idle
     }

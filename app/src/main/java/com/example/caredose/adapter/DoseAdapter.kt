@@ -1,101 +1,144 @@
 package com.example.caredose.adapter
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.caredose.database.AppDatabase
 import com.example.caredose.database.entities.Dose
+import com.example.caredose.database.entities.DurationType
 import com.example.caredose.databinding.ItemDoseBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
 
 class DoseAdapter(
     private val onEditClick: (Dose) -> Unit,
     private val onDeleteClick: (Dose) -> Unit,
     private val onMarkTakenClick: (Dose) -> Unit
-) : ListAdapter<Dose, DoseAdapter.ViewHolder>(DiffCallback()) {
+) : ListAdapter<Dose, DoseAdapter.DoseViewHolder>(DoseDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DoseViewHolder {
         val binding = ItemDoseBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return ViewHolder(binding)
+        return DoseViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: DoseViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class ViewHolder(
+    inner class DoseViewHolder(
         private val binding: ItemDoseBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(dose: Dose) {
-            val context = binding.root.context
-            val lifecycleOwner = context as? LifecycleOwner
+            binding.tvMedicineName.text = "Loading..."
 
-            lifecycleOwner?.lifecycleScope?.launch {
-                val db = AppDatabase.getDatabase(context)
-                val stock = db.medicineStockDao().getById(dose.stockId)
-                val medicine = stock?.let { db.masterMedicineDao().getById(it.masterMedicineId) }
+                      CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val db = AppDatabase.getDatabase(binding.root.context)
+                    val medicine = db.masterMedicineDao().getById(dose.medicineId)
+                    val medicineName = medicine?.name ?: "Unknown Medicine"
 
-                binding.apply {
-                    tvMedicineName.text = medicine?.name ?: "Unknown Medicine"
-                    tvDoseTime.text = formatTime(dose.timeInMinutes)
-                    tvDoseQuantity.text = "${dose.quantity} Tablet"
-                    tvStatus.text = if (dose.isActive) "Active" else "Inactive"
-                    tvStatus.setTextColor(
-                        if (dose.isActive)
-                            android.graphics.Color.parseColor("#4CAF50")
-                        else
-                            android.graphics.Color.parseColor("#F44336")
-                    )
-
-                    if (dose.isTakenToday) {
-                        binding.btnMarkTaken.text = "✓ Taken"
-                        binding.btnMarkTaken.isEnabled = false // Disable after taking
-                        // Optional: change color to gray
-                        binding.btnMarkTaken.alpha = 0.5f
-                    } else {
-                        binding.btnMarkTaken.text = "Mark Taken"
-                        binding.btnMarkTaken.isEnabled = dose.isActive // Only enable if the dose is active
-                        binding.btnMarkTaken.alpha = 1.0f
+                    withContext(Dispatchers.Main) {
+                        binding.tvMedicineName.text = medicineName
                     }
-
-                    btnEdit.setOnClickListener { onEditClick(dose) }
-                    btnDelete.setOnClickListener { onDeleteClick(dose) }
-                    root.setOnClickListener { onEditClick(dose) }
-
-                    binding.btnMarkTaken.setOnClickListener {
-                        // Check if enabled (prevent double click race condition)
-                        if (binding.btnMarkTaken.isEnabled) {
-                            // Optimistically disable the button immediately
-                            binding.btnMarkTaken.isEnabled = false
-                            onMarkTakenClick(dose)
-                        }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        binding.tvMedicineName.text = "Unknown Medicine"
                     }
                 }
             }
+            binding.tvDoseTime.text = formatTime(dose.timeInMinutes)
+
+            binding.tvDoseQuantity.text = "${dose.quantity} tablet${if (dose.quantity > 1) "s" else ""}"
+
+            val statusText = buildString {
+                if (!dose.isActive) {
+                    append("Inactive")
+                } else if (dose.isExpired()) {
+                    append("Expired")
+                } else {
+                    append("Active")
+
+                    if (dose.endDate != null) {
+                        append(" • ")
+                        append(getDurationText(dose))
+                    } else {
+                        append(" • Continuous")
+                    }
+                }
+            }
+
+            binding.tvStatus.text = statusText
+
+            binding.tvStatus.setTextColor(
+                when {
+                    !dose.isActive -> Color.GRAY
+                    dose.isExpired() -> Color.RED
+                    dose.endDate != null && getRemainingDays(dose.endDate) <= 3 -> Color.parseColor("#FF6F00")
+                    else -> Color.parseColor("#4CAF50")
+                }
+            )
+
+            binding.btnMarkTaken.isEnabled = dose.isActive && !dose.isTakenToday && !dose.isExpired()
+            binding.btnMarkTaken.text = if (dose.isTakenToday) "✓ Taken" else "Mark Taken"
+            binding.btnMarkTaken.alpha = if (binding.btnMarkTaken.isEnabled) 1.0f else 0.5f
+
+            binding.btnEdit.setOnClickListener { onEditClick(dose) }
+            binding.btnDelete.setOnClickListener { onDeleteClick(dose) }
+            binding.btnMarkTaken.setOnClickListener { onMarkTakenClick(dose) }
         }
 
         private fun formatTime(timeInMinutes: Int): String {
             val hour = timeInMinutes / 60
             val minute = timeInMinutes % 60
-            return String.format(
-                "%02d:%02d %s",
-                if (hour % 12 == 0) 12 else hour % 12,
-                minute,
-                if (hour < 12) "AM" else "PM"
-            )
+            val period = if (hour < 12) "AM" else "PM"
+            val displayHour = when {
+                hour == 0 -> 12
+                hour > 12 -> hour - 12
+                else -> hour
+            }
+            return String.format("%02d:%02d %s", displayHour, minute, period)
+        }
+
+        private fun getDurationText(dose: Dose): String {
+            val endDate = dose.endDate ?: return "Continuous"
+            val remainingDays = getRemainingDays(endDate)
+
+            return when {
+                remainingDays < 0 -> "Expired"
+                remainingDays == 0L -> "Ends today"
+                remainingDays == 1L -> "1 day left"
+                remainingDays <= 7 -> "$remainingDays days left"
+                remainingDays <= 30 -> {
+                    val weeks = remainingDays / 7
+                    if (weeks == 1L) "1 week left" else "$weeks weeks left"
+                }
+                else -> {
+                    val months = remainingDays / 30
+                    if (months == 1L) "1 month left" else "$months months left"
+                }
+            }
+        }
+
+        private fun getRemainingDays(endDate: Long): Long {
+            val now = System.currentTimeMillis()
+            return TimeUnit.MILLISECONDS.toDays(endDate - now)
         }
     }
 
-    class DiffCallback : DiffUtil.ItemCallback<Dose>() {
+    private class DoseDiffCallback : DiffUtil.ItemCallback<Dose>() {
         override fun areItemsTheSame(oldItem: Dose, newItem: Dose): Boolean {
             return oldItem.doseId == newItem.doseId
         }

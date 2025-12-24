@@ -18,7 +18,7 @@ import androidx.room.PrimaryKey
     indices = [Index("userId"), Index(value = ["userId", "name"], unique = true)]
 )
 data class MasterMedicine(
-    val userId: Long,       // Each user has their own list
+    val userId: Long,
     val name: String,
     @PrimaryKey(autoGenerate = true)
     val medicineId: Long = 0,

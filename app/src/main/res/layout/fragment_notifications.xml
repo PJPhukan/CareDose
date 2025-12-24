@@ -12,7 +12,6 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- FIX 1: Add contentDescription for accessibility -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"

@@ -19,8 +19,7 @@
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
 
-        <!-- Medicine Name (AutoComplete) -->
-        <com.google.android.material.textfield.TextInputLayout
+      <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Medicine Name"
@@ -42,8 +41,7 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Stock Quantity -->
-        <com.google.android.material.textfield.TextInputLayout
+       <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -61,26 +59,6 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Duration (in days) -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="Duration (days)"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etDuration"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="56dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:inputType="number" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Low Stock Threshold -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -99,7 +77,7 @@
                 android:text="5" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Reminder Switch -->
+
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchReminder"
             android:layout_width="match_parent"
@@ -109,7 +87,6 @@
             android:text="Enable low stock reminder"
             android:checked="true" />
 
-        <!-- Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

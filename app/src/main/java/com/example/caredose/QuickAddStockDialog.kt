@@ -83,15 +83,25 @@ class QuickAddStockDialog : DialogFragment() {
             binding.tvMedicineName.text = medicineName
             binding.tvCurrentStock.text = "Current Stock: ${currentStock.stockQty} units"
 
+            // Prefill the quantity field with current stock amount
+            binding.etQuantity.setText(currentStock.stockQty.toString())
+
             // Show quick add buttons
             setupQuickAddButtons()
         }
     }
 
     private fun setupQuickAddButtons() {
-        binding.btnAdd10.setOnClickListener { addStock(10) }
-        binding.btnAdd20.setOnClickListener { addStock(20) }
-        binding.btnAdd50.setOnClickListener { addStock(50) }
+        binding.btnAdd10.setOnClickListener { incrementQuantity(10) }
+        binding.btnAdd20.setOnClickListener { incrementQuantity(20) }
+        binding.btnAdd50.setOnClickListener { incrementQuantity(50) }
+    }
+
+    private fun incrementQuantity(amount: Int) {
+        val currentQuantityStr = binding.etQuantity.text.toString().trim()
+        val currentQuantity = currentQuantityStr.toIntOrNull() ?: 0
+        val newQuantity = currentQuantity + amount
+        binding.etQuantity.setText(newQuantity.toString())
     }
 
     private fun setupClickListeners() {
@@ -103,13 +113,13 @@ class QuickAddStockDialog : DialogFragment() {
                 return@setOnClickListener
             }
 
-            val quantity = quantityStr.toIntOrNull()
-            if (quantity == null || quantity <= 0) {
+            val newQuantity = quantityStr.toIntOrNull()
+            if (newQuantity == null || newQuantity <= 0) {
                 binding.etQuantity.error = "Enter valid quantity"
                 return@setOnClickListener
             }
 
-            addStock(quantity)
+            updateStock(newQuantity)
         }
 
         binding.btnCancel.setOnClickListener {
@@ -117,24 +127,26 @@ class QuickAddStockDialog : DialogFragment() {
         }
     }
 
-    private fun addStock(quantity: Int) {
+    private fun updateStock(newQuantity: Int) {
         stock?.let { currentStock ->
             lifecycleScope.launch {
                 try {
                     val db = AppDatabase.getDatabase(requireContext())
 
+                    val quantityAdded = newQuantity - currentStock.stockQty
+
                     // Update stock in database
                     val updatedStock = currentStock.copy(
-                        stockQty = currentStock.stockQty + quantity
+                        stockQty = newQuantity
                     )
                     db.medicineStockDao().update(updatedStock)
 
-                    // Notify listener
-                    onStockUpdated?.invoke(quantity)
+                    // Notify listener with the amount added
+                    onStockUpdated?.invoke(quantityAdded)
 
                     Toast.makeText(
                         requireContext(),
-                        "Added $quantity units to stock",
+                        "Stock updated to $newQuantity units (${if (quantityAdded >= 0) "+" else ""}$quantityAdded)",
                         Toast.LENGTH_SHORT
                     ).show()
 

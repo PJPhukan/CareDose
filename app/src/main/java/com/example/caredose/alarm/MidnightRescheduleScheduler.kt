@@ -44,23 +44,14 @@ class MidnightRescheduleScheduler(private val context: Context) {
             val hours = timeUntilMidnight / 60
             val minutes = timeUntilMidnight % 60
 
-            Log.d(TAG, "✅ Midnight reschedule alarm set successfully")
-            Log.d(TAG, "   Next trigger: ${LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(midnightTime),
-                ZoneId.systemDefault()
-            )}")
-            Log.d(TAG, "   Time until midnight: ${hours}h ${minutes}m")
         } catch (e: SecurityException) {
-            Log.e(TAG, "❌ Permission denied for scheduling exact alarm: ${e.message}", e)
+            Log.e(TAG, "Permission denied for scheduling exact alarm: ${e.message}", e)
             Log.e(TAG, "   Please enable SCHEDULE_EXACT_ALARM permission in settings")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error scheduling midnight reschedule: ${e.message}", e)
+            Log.e(TAG, "Error scheduling midnight reschedule: ${e.message}", e)
         }
     }
 
-    /**
-     * Cancels the scheduled midnight reschedule alarm
-     */
     fun cancelMidnightReschedule() {
         val intent = Intent(context, MidnightRescheduleReceiver::class.java).apply {
             action = MidnightRescheduleReceiver.ACTION_MIDNIGHT_RESCHEDULE
@@ -76,20 +67,15 @@ class MidnightRescheduleScheduler(private val context: Context) {
         try {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
-            Log.d(TAG, "🚫 Midnight reschedule cancelled successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cancelling midnight reschedule: ${e.message}", e)
+            Log.e(TAG, "Error cancelling midnight reschedule: ${e.message}", e)
         }
     }
 
-    /**
-     * Calculates the timestamp for the next midnight (00:00:00)
-     * If it's already past midnight today, it will schedule for tomorrow
-     */
     private fun calculateNextMidnight(): Long {
         val now = LocalDateTime.now()
 
-        // Calculate next midnight (tomorrow at 00:00:00)
+        // Calculate next midnight
         val midnight = now.plusDays(1)
             .withHour(0)
             .withMinute(0)
@@ -98,16 +84,9 @@ class MidnightRescheduleScheduler(private val context: Context) {
 
         val midnightMillis = midnight.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-        Log.d(TAG, "📅 Current time: $now")
-        Log.d(TAG, "🌙 Next midnight: $midnight")
-
         return midnightMillis
     }
 
-    /**
-     * Checks if the midnight reschedule alarm is currently scheduled
-     * Returns true if scheduled, false otherwise
-     */
     fun isMidnightRescheduleScheduled(): Boolean {
         val intent = Intent(context, MidnightRescheduleReceiver::class.java).apply {
             action = MidnightRescheduleReceiver.ACTION_MIDNIGHT_RESCHEDULE

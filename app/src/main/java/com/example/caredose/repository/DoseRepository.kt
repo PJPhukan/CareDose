@@ -1,18 +1,18 @@
 package com.example.caredose.repository
 
 import com.example.caredose.database.dao.DoseDao
-import com.example.caredose.database.dao.DoseLogDao // ASSUMED: You need a DAO for logging
+import com.example.caredose.database.dao.DoseLogDao
 import com.example.caredose.database.dao.MedicineStockDao
 import com.example.caredose.database.entities.Dose
-import com.example.caredose.database.entities.DoseLog // ASSUMED: You need a DoseLog entity
+import com.example.caredose.database.entities.DoseLog
 import kotlinx.coroutines.flow.Flow
 
 class DoseRepository(
     private val doseDao: DoseDao,
-    // FIX 1: Inject MedicineStockDao and DoseLogDao instances
     private val medicineStockDao: MedicineStockDao,
     private val doseLogDao: DoseLogDao
 ) {
+
 
     fun getDosesByMedicineStock(stockId: Long): Flow<List<Dose>> {
         return doseDao.getDosesByMedicineStock(stockId)
@@ -42,12 +42,10 @@ class DoseRepository(
         doseDao.deleteAllForMedicineStock(stockId)
     }
 
-    // FIX 2: Un-nested functions
     suspend fun resetAllDoses() {
         doseDao.resetAllDoses()
     }
 
-    // FIX 2: Un-nested functions
     suspend fun getAllActiveDoses(): List<Dose> {
         return doseDao.getAllActiveDoses()
     }
@@ -84,6 +82,96 @@ class DoseRepository(
             } else {
                 false
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun getDosesByScheduleGroup(scheduleGroupId: String): Flow<List<Dose>> {
+        return doseDao.getDosesByScheduleGroupFlow(scheduleGroupId)
+    }
+
+    suspend fun getDosesByScheduleGroupOnce(scheduleGroupId: String): List<Dose> {
+        return doseDao.getDosesByScheduleGroup(scheduleGroupId)
+    }
+
+    fun getValidDosesByPatient(patientId: Long): Flow<List<Dose>> {
+        val currentTime = System.currentTimeMillis()
+        return doseDao.getActiveDosesForPatient(patientId, currentTime)
+    }
+
+    suspend fun getDosesForAlarmScheduling(): List<Dose> {
+        val currentTime = System.currentTimeMillis()
+        return doseDao.getAllValidDosesForReminders(currentTime)
+    }
+
+
+    suspend fun deleteScheduleGroup(scheduleGroupId: String) {
+        doseDao.deleteScheduleGroup(scheduleGroupId)
+    }
+
+    suspend fun updateScheduleGroupDuration(
+        scheduleGroupId: String,
+        durationType: String,
+        durationValue: Int?,
+        endDate: Long?
+    ) {
+        doseDao.updateScheduleGroupDuration(
+            scheduleGroupId,
+            durationType,
+            durationValue,
+            endDate
+        )
+    }
+
+    suspend fun deactivateExpiredDoses(): Int {
+        val currentTime = System.currentTimeMillis()
+        return doseDao.deactivateExpiredDoses(currentTime)
+    }
+
+    suspend fun getExpiredDoses(): List<Dose> {
+        val currentTime = System.currentTimeMillis()
+        return doseDao.getExpiredActiveDoses(currentTime)
+    }
+
+    suspend fun getActiveScheduleCount(patientId: Long): Int {
+        val currentTime = System.currentTimeMillis()
+        return doseDao.countActiveDoses(patientId, currentTime)
+    }
+
+    suspend fun getExpiringDosesCount(patientId: Long, daysAhead: Int): Int {
+      val currentTime = System.currentTimeMillis()
+        val futureTime = currentTime + (daysAhead * 24 * 60 * 60 * 1000L)
+        val doses = doseDao.getDosesExpiringSoon(patientId, currentTime, futureTime)
+        return doses.size
+    }
+
+    suspend fun insertScheduleGroup(doses: List<Dose>): Boolean {
+        return try {
+            if (doses.isEmpty()) return false
+
+            val scheduleGroupId = doses.first().scheduleGroupId
+            if (doses.any { it.scheduleGroupId != scheduleGroupId }) {
+                throw IllegalArgumentException("All doses must have the same scheduleGroupId")
+            }
+
+            doseDao.insertAll(doses)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun updateScheduleGroup(
+        oldScheduleGroupId: String,
+        newDoses: List<Dose>
+    ): Boolean {
+        return try {
+            doseDao.deleteScheduleGroup(oldScheduleGroupId)
+            doseDao.insertAll(newDoses)
+            true
         } catch (e: Exception) {
             e.printStackTrace()
             false

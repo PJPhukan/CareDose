@@ -14,8 +14,6 @@ class MedicineStockViewModel(
 ) : ViewModel() {
 
     private val _userId = MutableStateFlow(0L)
-
-    // Changed from patient-based to user-based
     val medicineStocks = _userId.flatMapLatest { userId ->
         repository.getStockByUser(userId)
     }.asLiveData()

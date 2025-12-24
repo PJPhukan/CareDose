@@ -15,8 +15,8 @@ class StockReminderScheduler(private val context: Context) {
     companion object {
         private const val MORNING_HOUR = 8
         private const val MORNING_MINUTE = 30
-        private const val EVENING_HOUR = 18
-        private const val EVENING_MINUTE = 0
+        private const val EVENING_HOUR = 21
+        private const val EVENING_MINUTE = 38
 
         private const val MORNING_REQUEST_CODE = 100001
         private const val EVENING_REQUEST_CODE = 100002
@@ -47,7 +47,6 @@ class StockReminderScheduler(private val context: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         try {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,

@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     tools:context=".ui.home.HomeFragment">
 
-    <!-- Empty State (shown when no patients) -->
     <LinearLayout
         android:id="@+id/emptyState"
         android:layout_width="match_parent"
@@ -43,7 +42,6 @@
 
     </LinearLayout>
 
-    <!-- Patients List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewPatients"
         android:layout_width="match_parent"
@@ -54,16 +52,14 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         tools:listitem="@layout/item_patient" />
 
-    <!-- Loading Indicator (centered on screen) -->
-    <ProgressBar
+     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <!-- Floating Action Button (Add Patient) -->
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+   <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fabAddPatient"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

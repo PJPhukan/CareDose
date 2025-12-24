@@ -233,7 +233,6 @@ class NotificationsFragment : Fragment() {
     }
 
     private fun observeViewModels() {
-        // Observe Medicine Add/Edit
         viewLifecycleOwner.lifecycleScope.launch {
             medicineViewModel.addEditState.collect { state ->
                 when (state) {
@@ -250,7 +249,6 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        // Observe Vital Add/Edit
         viewLifecycleOwner.lifecycleScope.launch {
             vitalViewModel.addEditState.collect { state ->
                 when (state) {

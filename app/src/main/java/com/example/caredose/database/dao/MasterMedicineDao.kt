@@ -27,11 +27,9 @@ interface MasterMedicineDao {
     @Query("SELECT * FROM master_medicines WHERE medicineId = :id")
     suspend fun getById(id: Long): MasterMedicine?
 
-    // ADDED: Get medicine by ID (for repository)
     @Query("SELECT * FROM master_medicines WHERE medicineId = :medicineId")
     suspend fun getMedicineById(medicineId: Long): MasterMedicine?
 
-    // ADDED: Get medicines by user ID
     @Query("SELECT * FROM master_medicines WHERE userId = :userId ORDER BY name ASC")
     fun getMedicinesByUser(userId: Long): Flow<List<MasterMedicine>>
 

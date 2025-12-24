@@ -40,13 +40,12 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
     }
 
-    // ✅ Permission launcher for POST_NOTIFICATIONS (Android 13+)
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Toast.makeText(this, "✓ Notification permission granted", Toast.LENGTH_SHORT).show()
-            // After notification permission, check exact alarm
+            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+
             checkExactAlarmPermission()
         } else {
             Toast.makeText(
@@ -54,17 +53,15 @@ class MainActivity : AppCompatActivity() {
                 "Notifications disabled. You won't receive dose reminders.",
                 Toast.LENGTH_LONG
             ).show()
-            // Still check exact alarm even if notification was denied
             checkExactAlarmPermission()
         }
     }
 
-    // ✅ Activity result for exact alarm settings
     private val exactAlarmSettingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (canScheduleExactAlarms()) {
-            Toast.makeText(this, "✓ Exact alarm permission granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Exact alarm permission granted", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(
                 this,
@@ -86,6 +83,16 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val midnightScheduler = MidnightRescheduleScheduler(this)
+        val stockReminderScheduler = StockReminderScheduler(this)
+        if (!stockReminderScheduler.areStockRemindersScheduled()) {
+            stockReminderScheduler.scheduleStockReminders()
+        }
+
+        if (!midnightScheduler.isMidnightRescheduleScheduled()) {
+            midnightScheduler.scheduleMidnightReschedule()
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -105,18 +112,9 @@ class MainActivity : AppCompatActivity() {
         loadUserName()
 
         requestAllPermissions()
-//        initializeStockReminders()
         handleStockReminderIntent(intent)
     }
-//    private fun initializeStockReminders() {
-//        val stockReminderScheduler = StockReminderScheduler(this)
-//        if (!stockReminderScheduler.areStockRemindersScheduled()) {
-//            stockReminderScheduler.scheduleStockReminders()
-//            Log.d(TAG, "📅 Stock reminders initialized for the first time")
-//        } else {
-//            Log.d(TAG, "✅ Stock reminders already scheduled, skipping")
-//        }
-//    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleStockReminderIntent(intent)
@@ -125,12 +123,7 @@ class MainActivity : AppCompatActivity() {
         val openStockScreen = intent?.getBooleanExtra("open_stock_screen", false) ?: false
 
         if (openStockScreen) {
-            // TODO: Navigate to your medicine stock screen/fragment
-            // Example:
-            // val fragment = MedicineStockFragment()
-            // supportFragmentManager.beginTransaction()
-            //     .replace(R.id.fragment_container, fragment)
-            //     .commit()
+            // TODO: Navigate to your medicine fragment
 
         }
     }
@@ -246,8 +239,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ Check if permissions were granted when returning from settings
-    override fun onResume() {
+  override fun onResume() {
         super.onResume()
         if (hasAskedForAlarmPermission) {
             val canSchedule = canScheduleExactAlarms()

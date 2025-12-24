@@ -8,12 +8,10 @@ class MasterVitalRepository(private val database: AppDatabase) {
 
     private val dao = database.masterVitalDao()
 
-    // Get all vitals for a specific user
     fun getVitalsByUser(userId: Long): Flow<List<MasterVital>> {
         return dao.getVitalsByUser(userId)
     }
 
-    // Insert a new vital
     suspend fun insertVital(vital: MasterVital): Long {
         return dao.insert(vital)
     }
@@ -32,12 +30,10 @@ class MasterVitalRepository(private val database: AppDatabase) {
         return dao.getById(vitalId)
     }
 
-    // Search by name
     suspend fun searchVitalByName(query: String): List<MasterVital> {
         return dao.searchByName(query)
     }
 
-    // Check if vital name already exists
     suspend fun findVitalByName(name: String): MasterVital? {
         return dao.findByName(name)
     }

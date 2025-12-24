@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-private const val TAG = "MIDNIGHT_RESCHEDULE"
+private const val TAG = "MIDNIGHT_RECEIVER"
 
 class MidnightRescheduleReceiver : BroadcastReceiver() {
 
@@ -19,68 +19,79 @@ class MidnightRescheduleReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_MIDNIGHT_RESCHEDULE) {
-            Log.d(TAG, "Wrong action received: ${intent.action}")
             return
         }
 
-        Log.d(TAG, "⏰ Midnight reschedule triggered at ${System.currentTimeMillis()}")
-        Log.d(TAG, "📅 Date: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+        Log.d(TAG, "🌙 Midnight reached - starting daily tasks...")
 
-        // Use goAsync() to allow background work
         val pendingResult = goAsync()
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                rescheduleAllDoses(context)
+                performMidnightTasks(context)
 
-                scheduleMidnightReschedule(context)
-
-                Log.d(TAG, "✅ All doses rescheduled successfully for new day")
+                // Reschedule for next midnight
+                val scheduler = MidnightRescheduleScheduler(context)
+                scheduler.scheduleMidnightReschedule()
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error rescheduling doses: ${e.message}", e)
+                Log.e(TAG, "Error during midnight tasks: ${e.message}", e)
             } finally {
                 pendingResult.finish()
             }
         }
     }
 
-    private suspend fun rescheduleAllDoses(context: Context) {
+    private suspend fun performMidnightTasks(context: Context) {
         val db = AppDatabase.getDatabase(context)
         val alarmManager = CareDoseAlarmDoseManager(context)
+        val currentTime = System.currentTimeMillis()
 
-        // Get all active doses
-        val doses = db.doseDao().getAllActiveDoses()
+        db.doseDao().resetAllDoses()
+        val expiredDoses = db.doseDao().getExpiredActiveDoses(currentTime)
 
-        Log.d(TAG, "📋 Found ${doses.size} total doses")
+        if (expiredDoses.isNotEmpty()) {
+          val deactivatedCount = db.doseDao().deactivateExpiredDoses(currentTime)
 
-        var rescheduledCount = 0
-
-        doses.forEach { dose ->
-            if (dose.isActive) {
+            expiredDoses.forEach { dose ->
                 try {
-                    // Get medicine and patient info
-                    val stock = db.medicineStockDao().getById(dose.stockId)
-                    val patient = db.patientDao().getById(dose.patientId)
-                    val medicine = db.masterMedicineDao().getById(stock!!.masterMedicineId)
-
-                    if (medicine != null && patient != null) {
-                        alarmManager.scheduleReminderDose(dose, medicine.name, patient.name,medicine.medicineId)
-                        rescheduledCount++
-                        Log.d(TAG, "✅ Rescheduled dose ${dose.doseId} for ${patient.name} - ${medicine.name}")
-                    } else {
-                        Log.w(TAG, "⚠️ Skipped dose ${dose.doseId}: Medicine or Patient not found")
-                    }
+                    alarmManager.cancelScheduleReminder(dose)
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error rescheduling dose ${dose.doseId}: ${e.message}", e)
+                    Log.e(TAG, "Error cancelling alarm for dose ${dose.doseId}: ${e.message}")
                 }
             }
         }
 
-        Log.d(TAG, "📊 Rescheduled $rescheduledCount active doses out of ${doses.size} total doses")
-    }
+        val validDoses = db.doseDao().getAllValidDosesForReminders(currentTime)
 
-    private fun scheduleMidnightReschedule(context: Context) {
-        val scheduler = MidnightRescheduleScheduler(context)
-        scheduler.scheduleMidnightReschedule()
+        var successCount = 0
+        var failureCount = 0
+
+        validDoses.forEach { dose ->
+            try {
+                if (dose.isValidSchedule() && !dose.isTakenToday) {
+                    val medicine = db.medicineStockDao().getById(dose.stockId)
+                    val patient = db.patientDao().getById(dose.patientId)
+                    val masterMedicine = medicine?.let {
+                        db.masterMedicineDao().getById(it.masterMedicineId)
+                    }
+
+                    if (patient != null && masterMedicine != null && medicine != null) {
+                        alarmManager.scheduleReminderDose(
+                            dose,
+                            masterMedicine.name,
+                            patient.name,
+                            medicine.masterMedicineId
+                        )
+                        successCount++
+                    } else {
+                        failureCount++
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error rescheduling dose ${dose.doseId}: ${e.message}")
+                failureCount++
+            }
+        }
+
     }
 }

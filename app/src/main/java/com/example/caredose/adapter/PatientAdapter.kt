@@ -9,7 +9,7 @@ import com.example.caredose.database.entities.Patient
 import com.example.caredose.databinding.ItemPatientBinding
 
 class PatientAdapter(
-    private val onPatientClick: (Patient) -> Unit = {},   // click on card (details)
+    private val onPatientClick: (Patient) -> Unit = {},
     private val onEditClick: (Patient) -> Unit,
     private val onDeleteClick: (Patient) -> Unit
 ) : ListAdapter<Patient, PatientAdapter.PatientViewHolder>(PatientDiffCallback()) {
@@ -36,17 +36,14 @@ class PatientAdapter(
                 tvPatientName.text = patient.name
                 tvPatientDetails.text = "${patient.age} yrs • ${patient.gender}"
 
-                // Card click -> details / edit or view
                 root.setOnClickListener {
                     onPatientClick(patient)
                 }
 
-                // Edit button
                 btnEdit.setOnClickListener {
                     onEditClick(patient)
                 }
 
-                // Delete button
                 btnDelete.setOnClickListener {
                     onDeleteClick(patient)
                 }

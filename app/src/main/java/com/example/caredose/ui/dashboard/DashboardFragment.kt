@@ -1,5 +1,6 @@
 package com.example.caredose.ui.dashboard
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,6 +10,7 @@ import android.widget.ArrayAdapter
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.example.caredose.AddEditPatient
 import com.example.caredose.R
 import com.example.caredose.SessionManager
 import com.example.caredose.States
@@ -36,7 +38,7 @@ class DashboardFragment : Fragment() {
     private lateinit var sessionManager: SessionManager
     private var dateRangeDays = 7 // Default 7 days
 
-    // ✅ Flags to track if we've auto-selected
+    // Flags to track if we've auto-selected
     private var hasAutoSelectedPatient = false
     private var hasAutoSelectedVital = false
 
@@ -55,6 +57,7 @@ class DashboardFragment : Fragment() {
         sessionManager = SessionManager(requireContext())
         setupViewModel()
         setupUI()
+        setupFAB()
         observeViewModel()
     }
 
@@ -76,12 +79,10 @@ class DashboardFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Patient selection
         binding.actvPatient.setOnItemClickListener { _, _, position, _ ->
             val patients = viewModel.patients.value ?: return@setOnItemClickListener
             if (position < patients.size) {
-                android.util.Log.d("DashboardFragment", "Patient selected: ${patients[position].name}")
-                viewModel.selectPatient(patients[position].patientId)
+               viewModel.selectPatient(patients[position].patientId)
             }
         }
 
@@ -89,21 +90,20 @@ class DashboardFragment : Fragment() {
         binding.actvVitalType.setOnItemClickListener { _, _, position, _ ->
             val vitalTypes = viewModel.vitalTypes.value ?: return@setOnItemClickListener
             if (position < vitalTypes.size) {
-                android.util.Log.d("DashboardFragment", "Vital selected: ${vitalTypes[position].name}")
-                viewModel.selectVitalType(vitalTypes[position].vitalId)
+                val selectedVitalId = vitalTypes[position].vitalId
+
+                viewModel.selectVitalType(selectedVitalId)
+
                 binding.cardDateRange.visibility = View.VISIBLE
 
-                // ✅ Always reload data when vital is selected (even if same vital)
-                android.util.Log.d("DashboardFragment", "Loading data for $dateRangeDays days")
-                viewModel.loadVitalsData(dateRangeDays)
+              viewModel.loadVitalsData(dateRangeDays)
             }
         }
 
-        // ✅ Date range filter - Use ChipGroup.OnCheckedStateChangeListener (correct API)
+        // Date range filter
         binding.chip7Days.isChecked = true
 
         binding.chipGroupDateRange.setOnCheckedStateChangeListener { group, checkedIds ->
-            android.util.Log.d("DashboardFragment", "Chips checked state changed: $checkedIds")
 
             if (checkedIds.isEmpty()) {
                 android.util.Log.w("DashboardFragment", "No chip selected")
@@ -111,49 +111,46 @@ class DashboardFragment : Fragment() {
             }
 
             val checkedId = checkedIds.first()
-            android.util.Log.d("DashboardFragment", "Checked chip ID: $checkedId")
 
-            dateRangeDays = when (checkedId) {
+            val newDateRange = when (checkedId) {
                 R.id.chip7Days -> {
-                    android.util.Log.d("DashboardFragment", "7 Days selected")
                     7
                 }
                 R.id.chip30Days -> {
-                    android.util.Log.d("DashboardFragment", "30 Days selected")
                     30
                 }
                 R.id.chip90Days -> {
-                    android.util.Log.d("DashboardFragment", "90 Days selected")
                     90
                 }
                 R.id.chipAllTime -> {
-                    android.util.Log.d("DashboardFragment", "All Time selected")
                     3650
                 }
                 else -> {
-                    android.util.Log.e("DashboardFragment", "Unknown chip ID: $checkedId")
                     7
                 }
             }
 
-            android.util.Log.d("DashboardFragment", "Date range changed to: $dateRangeDays days")
+          dateRangeDays = newDateRange
             reloadDataIfVitalSelected()
         }
     }
 
-    // ✅ Helper function to reload data if vital is selected
+    private fun setupFAB() {
+        binding.fabAddPatient.setOnClickListener {
+            val intent = Intent(requireContext(), AddEditPatient::class.java)
+            startActivity(intent)
+        }
+    }
+
     private fun reloadDataIfVitalSelected() {
-        android.util.Log.d("DashboardFragment", "reloadDataIfVitalSelected called")
-        if (viewModel.selectedVitalType.value != null) {
-            android.util.Log.d("DashboardFragment", "Reloading data for $dateRangeDays days")
-            viewModel.loadVitalsData(dateRangeDays)
+       if (viewModel.selectedVitalType.value != null) {
+          viewModel.loadVitalsData(dateRangeDays)
         } else {
             android.util.Log.w("DashboardFragment", "No vital type selected")
         }
     }
 
     private fun observeViewModel() {
-        // Observe patients
         viewModel.patients.observe(viewLifecycleOwner) { patients ->
             if (patients.isEmpty()) {
                 showEmptyState()
@@ -168,7 +165,6 @@ class DashboardFragment : Fragment() {
             )
             binding.actvPatient.setAdapter(adapter)
 
-            // ✅ Auto-select first patient if not already selected
             if (!hasAutoSelectedPatient && patients.isNotEmpty()) {
                 hasAutoSelectedPatient = true
                 binding.actvPatient.setText(patients[0].name, false)
@@ -193,7 +189,7 @@ class DashboardFragment : Fragment() {
             )
             binding.actvVitalType.setAdapter(adapter)
 
-            // ✅ Auto-select first vital type if not already selected
+            // Auto-select first vital type if not already selected
             if (!hasAutoSelectedVital && vitalTypes.isNotEmpty()) {
                 hasAutoSelectedVital = true
                 binding.actvVitalType.setText(vitalTypes[0].name, false)
@@ -205,14 +201,11 @@ class DashboardFragment : Fragment() {
 
         // Observe vitals data
         viewModel.vitalsData.observe(viewLifecycleOwner) { vitals ->
-            android.util.Log.d("DashboardFragment", "Vitals data received: ${vitals.size} records")
             if (vitals.isNotEmpty()) {
                 displayGraph(vitals)
             } else {
-                // ✅ Show empty state when no data
                 android.util.Log.w("DashboardFragment", "No vitals data available")
                 binding.cardGraph.visibility = View.GONE
-                // Don't show snackbar here, as the state observer will handle it
             }
         }
 
@@ -237,7 +230,7 @@ class DashboardFragment : Fragment() {
                 is States.Success -> {
                     binding.progressBar.visibility = View.GONE
 
-                    // ✅ Check if we have empty data after successful load
+                    // Check if we have empty data after successful load
                     val vitals = viewModel.vitalsData.value
                     if (vitals.isNullOrEmpty()) {
                         Snackbar.make(
